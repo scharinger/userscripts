@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Epic Color Picker
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.0
+// @version      1.1
 // @description  Replace Jira’s epic color 'ghx-label-#' with a color picker
 // @author       Tim Scharinger
 // @match        https://*/issues/*
@@ -18,28 +18,29 @@
 
   // Configuration
   const CONFIG = {
-    // Map of ghx-label-X to color hex and names (Jira's default epic colors)
+    // Map of ghx-label-X to color CSS properties (using Jira's CSS custom properties)
     EPIC_COLORS: {
-      "ghx-label-1": { color: "#8d542e", textColor: "#fff", name: "Brown" },
-      "ghx-label-2": { color: "#ff8b00", textColor: "#172b4d", name: "Orange" },
-      "ghx-label-3": { color: "#ffc400", textColor: "#172b4d", name: "Yellow" },
-      "ghx-label-4": { color: "#0747a6", textColor: "#fff", name: "Dark Blue" },
-      "ghx-label-5": { color: "#253858", textColor: "#fff", name: "Dark Grey" },
-      "ghx-label-6": { color: "#57d9a3", textColor: "#172b4d", name: "Light Green" },
-      "ghx-label-7": { color: "#b93d9e", textColor: "#fff", name: "Magenta" },
-      "ghx-label-8": { color: "#5243aa", textColor: "#fff", name: "Purple" },
-      "ghx-label-9": { color: "#ff8f73", textColor: "#172b4d", name: "Light Red" },
-      "ghx-label-10": { color: "#0065ff", textColor: "#fff", name: "Blue" },
-      "ghx-label-11": { color: "#008299", textColor: "#fff", name: "Dark Teal" },
-      "ghx-label-12": { color: "#5e6c84", textColor: "#fff", name: "Grey" },
-      "ghx-label-13": { color: "#00875a", textColor: "#fff", name: "Green" },
-      "ghx-label-14": { color: "#de350b", textColor: "#fff", name: "Red" },
+      "ghx-label-0": { color: "var(--ds-background-accent-gray-bolder, #6b778c)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-1": { color: "var(--ds-background-accent-orange-bolder, #8d542e)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-2": { color: "var(--ds-background-accent-orange-subtle, #ff8b00)", textColor: "var(--ds-text-accent-orange-bolder, #172b4d)" },
+      "ghx-label-3": { color: "var(--ds-background-accent-yellow-subtle, #ffc400)", textColor: "var(--ds-text-accent-yellow-bolder, #172b4d)" },
+      "ghx-label-4": { color: "var(--ds-background-accent-blue-bolder, #0747a6)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-5": { color: "var(--ds-text-accent-gray-bolder, #253858)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-6": { color: "var(--ds-background-accent-green-subtler, #57d9a3)", textColor: "var(--ds-text-accent-green-bolder, #172b4d)" },
+      "ghx-label-7": { color: "var(--ds-background-accent-magenta-bolder, #b93d9e)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-8": { color: "var(--ds-background-accent-purple-bolder, #5243aa)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-9": { color: "var(--ds-background-accent-red-subtler, #ff8f73)", textColor: "var(--ds-text-accent-red-bolder, #172b4d)" },
+      "ghx-label-10": { color: "var(--ds-background-accent-blue-subtler, #0065ff)", textColor: "var(--ds-text-accent-blue-bolder, #fff)" },
+      "ghx-label-11": { color: "var(--ds-background-accent-teal-bolder, #008299)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-12": { color: "var(--ds-background-accent-gray-bolder, #5e6c84)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-13": { color: "var(--ds-background-accent-green-bolder, #00875a)", textColor: "var(--ds-text-inverse, #fff)" },
+      "ghx-label-14": { color: "var(--ds-background-accent-red-bolder, #de350b)", textColor: "var(--ds-text-inverse, #fff)" },
     },
     API_ENDPOINT: "/rest/greenhopper/1.0/xboard/issue/update-field.json",
     FIELD_ID: "customfield_10003",
     EPIC_NAME_FIELD: "customfield_10002",
     DROPDOWN_STYLES: {
-      width: "86px",
+      width: "90px",
       fontSize: "11px",
       border: "1px solid #888",
       borderRadius: "3px",
@@ -52,22 +53,7 @@
 
   // Utilities
   const Utils = {
-    hexToRgb: (hex) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : null;
-    },
-    getLuminance: (r, g, b) => {
-      const [rs, gs, bs] = [r, g, b].map(c => {
-        c = c / 255;
-        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-      });
-      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-    },
-    getTextColor: (bgColor, label) => {
+    getTextColor: (_, label) => {
       // First try to get text color from the epic colors config
       if (label) {
         const colorInfo = CONFIG.EPIC_COLORS[label];
@@ -76,18 +62,15 @@
         }
       }
       
-      // Fallback to luminance calculation
-      const rgb = Utils.hexToRgb(bgColor);
-      if (!rgb) return "#fff";
-      const luminance = Utils.getLuminance(rgb.r, rgb.g, rgb.b);
-      return luminance > 0.5 ? "#172b4d" : "#fff";
+      // Fallback for undefined colors
+      return "var(--ds-text, #172b4d)";
     },
     getColorInfo: (label) => {
       // Handle empty or whitespace-only labels
       if (!label || label.trim() === "") {
-        return { color: "#ccc", textColor: "#000", name: "Undefined" };
+        return { color: "var(--ds-background-neutral, #ccc)", textColor: "var(--ds-text, #000)" };
       }
-      return CONFIG.EPIC_COLORS[label] || { color: "#ccc", textColor: "#000", name: "Unknown" };
+      return CONFIG.EPIC_COLORS[label] || { color: "var(--ds-background-neutral, #ccc)", textColor: "var(--ds-text, #000)" };
     },
     generateId: () =>
       `epic-color-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
@@ -146,8 +129,8 @@
         const undefinedOption = document.createElement("option");
         undefinedOption.value = "";
         undefinedOption.textContent = "Undefined";
-        undefinedOption.style.setProperty('background-color', '#ccc', 'important');
-        undefinedOption.style.setProperty('color', '#000', 'important');
+        undefinedOption.style.setProperty('background-color', 'var(--ds-background-neutral, #ccc)', 'important');
+        undefinedOption.style.setProperty('color', 'var(--ds-text, #000)', 'important');
         undefinedOption.selected = true;
         dropdown.appendChild(undefinedOption);
       }
@@ -156,7 +139,7 @@
       Object.entries(CONFIG.EPIC_COLORS).forEach(([labelKey, colorData]) => {
         const option = document.createElement("option");
         option.value = labelKey;
-        option.textContent = colorData.name;
+        option.textContent = labelKey; // Show the ghx-label-# identifier for communication
         option.style.setProperty('background-color', colorData.color, 'important');
         option.style.setProperty('color', Utils.getTextColor(colorData.color, labelKey), 'important');
 
@@ -321,7 +304,6 @@
 
     async handleColorChange() {
       const selectedLabel = this.dropdown.value;
-      const selectedColorInfo = Utils.getColorInfo(selectedLabel);
 
       // Show preview
       DropdownCreator.showPreview(this.dropdown, selectedLabel);
@@ -341,12 +323,12 @@
       );
 
       dialog.show(
-        () => this.confirmChange(selectedLabel, selectedColorInfo),
+        () => this.confirmChange(selectedLabel),
         () => this.cancelChange()
       );
     }
 
-    async confirmChange(selectedLabel, selectedColorInfo) {
+    async confirmChange(selectedLabel) {
       try {
         // Update visual state
         this.dropdown.value = selectedLabel;
@@ -360,7 +342,7 @@
         Utils.logSuccess("Epic color updated successfully:", data);
         Utils.showNotification(
           "Epic Color Updated",
-          `${issueKey} color changed to ${selectedColorInfo.name}`
+          `${issueKey} epic color updated`
         );
 
         // Update tracking
