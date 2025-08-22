@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Epic Color Picker
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.1
+// @version      1.2
 // @description  Replace Jira’s epic color 'ghx-label-#' with a color picker
 // @author       Tim Scharinger
 // @match        https://*/issues/*
@@ -109,6 +109,32 @@
         row.querySelector(`td.${CONFIG.EPIC_NAME_FIELD}`) ||
         row.querySelector(`td[data-field-id='${CONFIG.EPIC_NAME_FIELD}']`);
       return epicNameCell ? epicNameCell.textContent.trim() : null;
+    },
+    isEpicIssue: (row) => {
+      // Check for epic indicators in the row
+      // 1. Look for epic type icon
+      const epicIcon = row.querySelector("img[alt*='Epic'], img[title*='Epic'], .aui-icon-epic, [data-issue-type*='epic']");
+      if (epicIcon) return true;
+      
+      // 2. Check if issue type column contains "Epic"
+      const issueTypeCell = row.querySelector("td.issuetype, td[data-field-id='issuetype']");
+      if (issueTypeCell && issueTypeCell.textContent.toLowerCase().includes("epic")) return true;
+      
+      // 3. Check for epic-specific CSS classes
+      if (row.classList.contains("epic") || row.querySelector(".epic")) return true;
+      
+      // 4. Check data attributes
+      const issueType = row.getAttribute("data-issue-type");
+      if (issueType && issueType.toLowerCase().includes("epic")) return true;
+      
+      // 5. If there's already an epic color value, it's probably an epic
+      const epicColorCell = row.querySelector(`td.${CONFIG.FIELD_ID}, td[data-field-id='${CONFIG.FIELD_ID}']`);
+      if (epicColorCell && epicColorCell.textContent.trim() && 
+          CONFIG.EPIC_COLORS[epicColorCell.textContent.trim()]) {
+        return true;
+      }
+      
+      return false;
     },
   };
 
@@ -387,6 +413,9 @@
 
         const issueKey = Selectors.getIssueKey(row);
         if (!issueKey) return;
+
+        // Only add color picker for epic issues
+        if (!Selectors.isEpicIssue(row)) return;
 
         const cellText = cell.textContent.trim();
         // Check if the cell contains a valid ghx-label or is empty/unknown
