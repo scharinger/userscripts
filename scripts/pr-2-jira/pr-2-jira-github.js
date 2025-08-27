@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PR-2-Jira: PR → Jira Button
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.0
+// @version      1.1
 // @description  Add a button to send the current PR to Jira as a remote link
 // @author       Tim Scharinger
 // @match        https://github.com/*/pull/*

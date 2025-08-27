@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PR-2-Jira: Jira ← PR Link Receiver
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.0
+// @version      1.1
 // @description  Receive a PR link and add it as a remote link to the Jira issue
 // @author       Tim Scharinger
 // @match        https://*/browse/*
@@ -55,7 +55,7 @@
             const exists = existingLinks.some(link => link.object?.url === url);
             if (exists) {
                 console.log(`${PREFIX} Link already exists on ${issueKey}: ${url}`);
-                showToast("PR Link", "Link already exists.", "info");
+                showToast("PR Link", "Link already exists.", "info", 3000);
                 return;
             }
 
@@ -74,17 +74,69 @@
             }
             console.log(`${PREFIX} PR link created on ${issueKey}: ${url}`);
             showToast("PR Link", "Link created.");
+            
+            // Refresh the links section to show the new link
+            refreshLinksSection();
         } catch (err) {
             console.error(`${PREFIX} [ERROR]`, err);
             showToast("PR Link", `Failed to create link: ${err.message || err}`, "error");
         }
     }
 
-    function showToast(title, body, type = "success") {
+    function showToast(title, body, type = "success", autoCloseDelay = null) {
         if (window.AJS?.flag) {
-            AJS.flag({ title, body, type });
+            console.log(`${PREFIX} AJS.flag available. Testing API...`);
+            console.log(`${PREFIX} AJS.flag function:`, typeof AJS.flag);
+            
+            // Try AJS.flag with timeout first (newer versions might support it)
+            const flagOptions = { title, body, type };
+            if (autoCloseDelay) {
+                console.log(`${PREFIX} Attempting auto-close with timeout: ${autoCloseDelay}ms`);
+                flagOptions.close = 'auto';
+                flagOptions.timeout = autoCloseDelay;
+            }
+            
+            console.log(`${PREFIX} Flag options:`, flagOptions);
+            const flag = AJS.flag(flagOptions);
+            console.log(`${PREFIX} Flag result:`, flag);
+            console.log(`${PREFIX} Flag methods:`, flag ? Object.keys(flag) : 'no flag returned');
+            
+            // Always use manual timeout since Jira's auto-close doesn't seem to work reliably
+            if (autoCloseDelay && flag && flag.close) {
+                console.log(`${PREFIX} Using manual setTimeout (${autoCloseDelay}ms)`);
+                setTimeout(() => {
+                    try {
+                        flag.close();
+                        console.log(`${PREFIX} Successfully auto-closed toast`);
+                    } catch (e) {
+                        console.log(`${PREFIX} Could not auto-close toast:`, e);
+                    }
+                }, autoCloseDelay);
+            }
         } else {
+            console.log(`${PREFIX} AJS.flag not available`);
             console.log(`${PREFIX} [TOAST] ${type.toUpperCase()}: ${title} – ${body}`);
+        }
+    }
+
+    function refreshLinksSection() {
+        // Try to find and reload the links section
+        const linksSection = document.querySelector('[data-module-key="com.atlassian.jira.jira-view-issue-plugin:linkissue-web-panel"]');
+        if (linksSection) {
+            console.log(`${PREFIX} Refreshing links section...`);
+            // Trigger a re-render by dispatching a custom event
+            window.dispatchEvent(new CustomEvent('jira:refresh-issue-links'));
+            
+            // Fallback: reload the specific module if available
+            if (window.JIRA?.Issue?.refreshIssuePage) {
+                setTimeout(() => window.JIRA.Issue.refreshIssuePage(), 1000);
+            } else {
+                // Last resort: reload the entire issue view after a delay
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } else {
+            console.log(`${PREFIX} Links section not found, will reload page...`);
+            setTimeout(() => window.location.reload(), 1000);
         }
     }
 
