@@ -4,7 +4,7 @@
 // @version      1.1
 // @description  Add a button to send the current PR to Jira as a remote link
 // @author       Tim Scharinger
-// @match        https://github.com/*/pull/*
+// @match        https://*/*/pull/*
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.js
 // @grant        GM_getValue
 // @grant        GM_setValue
