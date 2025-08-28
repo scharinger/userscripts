@@ -8,6 +8,8 @@
 // @icon         https://www.atlassian.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
 // @supportURL   https://github.com/scharinger/userscripts/issues
+// @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/jira-epic-color-picker.js
+// @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/jira-epic-color-picker.js
 // @donate       https://ko-fi.com/scharinger
 // @grant        none
 // ==/UserScript==

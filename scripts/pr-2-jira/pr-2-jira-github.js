@@ -12,6 +12,8 @@
 // @icon         https://github.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
 // @supportURL   https://github.com/scharinger/userscripts/issues
+// @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira/pr-2-jira-github.js
+// @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira/pr-2-jira-github.js
 // @donate       https://ko-fi.com/scharinger
 // ==/UserScript==
 

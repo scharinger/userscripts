@@ -8,6 +8,8 @@
 // @icon         https://www.atlassian.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
 // @supportURL   https://github.com/scharinger/userscripts/issues
+// @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira/pr-2-jira-jira.js
+// @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira/pr-2-jira-jira.js
 // @donate       https://ko-fi.com/scharinger
 // @grant        none
 // ==/UserScript==
