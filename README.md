@@ -88,9 +88,7 @@ The script (`pr-2-jira.js`) automatically detects the page type and provides the
 
 ### Configuration
 
-Access settings through the Tampermonkey menu: **PR-2-Jira Settings**
-
-![Tampermonkey Settings for the script](./docs/tampermonkey-script-setting.png)
+Access settings through by clicking the cogwheel icon. Located next to the "Create PR link in Jira" button or in the bottom left corner.
 
 ### 🎨 Jira Epic Color Picker
 

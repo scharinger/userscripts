@@ -1,21 +1,18 @@
 // ==UserScript==
 // @name         PR-2-Jira: GitHub & Jira Integration
 // @namespace    https://github.com/scharinger/userscripts
-// @version      2.0
-// @description  Add buttons to send PR links to Jira and automatically handle PR link creation
+// @version      2.1
+// @description  Seamlessly connect GitHub PRs to Jira with smart button placement and automatic link creation
 // @author       Tim Scharinger
 // @match        https://*/*/pull/*
 // @match        https://*/browse/*
-// @require      https://openuserjs.org/src/libs/sizzle/GM_config.js
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_registerMenuCommand
 // @icon         https://github.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
 // @supportURL   https://github.com/scharinger/userscripts/issues
-// @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira.js
-// @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira.js
+// @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira-combined.js
+// @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira-combined.js
 // @donate       https://ko-fi.com/scharinger
+// @grant        none
 // ==/UserScript==
 
 (function () {
@@ -23,145 +20,183 @@
 
     const PREFIX = '[PR-2-Jira]';
 
-    // Detect which functionality to run based on URL
+    // Simple settings management with localStorage
+    const Settings = {
+        get: (key, defaultValue) => {
+            try {
+                const stored = localStorage.getItem(`pr2jira_${key}`);
+                return stored !== null ? JSON.parse(stored) : defaultValue;
+            } catch {
+                return defaultValue;
+            }
+        },
+        set: (key, value) => {
+            try {
+                localStorage.setItem(`pr2jira_${key}`, JSON.stringify(value));
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    };
+
+    // Detect page type
     function detectPageType() {
         const hostname = window.location.hostname.toLowerCase();
         const pathname = window.location.pathname;
         
-        // Check if domain contains 'github' and URL has /pull/
         if (hostname.includes('github') && pathname.includes('/pull/')) {
             return 'github';
-        }
-        // Check if domain contains 'jira' and URL has /browse/
-        else if (hostname.includes('jira') && pathname.includes('/browse/')) {
+        } else if (hostname.includes('jira') && pathname.includes('/browse/')) {
             return 'jira';
         }
-        
         return null;
     }
 
     // GitHub functionality
     function initializeGitHubFeatures() {
-        // Wait for GM_config to be ready
-        function initializeScript() {
-            // Initialize GM_config
-            GM_config.init({
-                'id': 'PR2JiraConfig',
-                'title': 'PR-2-Jira Settings',
-                'fields': {
-                    'linkPrefix': {
-                        'label': 'Jira Link Prefix',
-                        'type': 'text',
-                        'default': 'Solves: Jira '
-                    }
-                },
-                'events': {
-                    'save': function() {
-                        console.log(`${PREFIX} Settings saved successfully!`);
-                        const newPrefix = GM_config.get('linkPrefix');
-                        console.log(`${PREFIX} New linkPrefix: "${newPrefix}"`);
-                        
-                        // Show temporary notification
-                        const notification = document.createElement('div');
-                        notification.innerHTML = '✅ PR-2-Jira settings saved!';
-                        notification.style.cssText = `
-                            position: fixed;
-                            top: 20px;
-                            right: 20px;
-                            background: #238636;
-                            color: white;
-                            padding: 12px 16px;
-                            border-radius: 6px;
-                            z-index: 10000;
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                        `;
-                        document.body.appendChild(notification);
-                        
-                        setTimeout(() => {
-                            notification.remove();
-                        }, 3000);
-                    }
+        console.log(`${PREFIX} Starting GitHub script`);
+
+        const jiraLinks = document.querySelectorAll('a[href*="/browse/"]');
+        if (jiraLinks.length === 0) {
+            console.warn(`${PREFIX} No Jira issue link found on this page.`);
+            return;
+        }
+
+        if (document.querySelector('.pr-2-jira-btn')) return;
+
+        const prUrl = window.location.href;
+        const linkPrefix = Settings.get('linkPrefix', 'Solves: Jira ');
+        
+        console.log(`${PREFIX} Retrieved linkPrefix: "${linkPrefix}"`);
+
+        function createButton(jiraLink) {
+            const button = document.createElement("button");
+            button.className = 'pr-2-jira-btn btn btn-sm';
+            button.textContent = "📌 Create PR link in Jira ↗️";
+            button.style.marginLeft = "0.5em";
+            button.title = "Open the Jira issue and send this PR as a remote link";
+
+            button.addEventListener("click", () => {
+                const jiraUrl = `${jiraLink.href}?prLink=${encodeURIComponent(prUrl)}`;
+                window.open(jiraUrl, "_blank");
+            });
+
+            return button;
+        }
+
+        function createSettingsButton() {
+            const settingsBtn = document.createElement("button");
+            settingsBtn.className = 'pr-2-jira-settings-btn btn btn-sm';
+            settingsBtn.innerHTML = "⚙️";
+            settingsBtn.style.cssText = "margin-left: 0.25em; padding: 2px 6px; font-size: 12px;";
+            settingsBtn.title = "PR-2-Jira Settings";
+
+            settingsBtn.addEventListener("click", showSettingsDialog);
+
+            return settingsBtn;
+        }
+
+        function addButtonToLink(jiraLink) {
+            const button = createButton(jiraLink);
+            const settingsButton = createSettingsButton();
+            
+            jiraLink.parentNode.insertBefore(button, jiraLink.nextSibling);
+            jiraLink.parentNode.insertBefore(settingsButton, button.nextSibling);
+        }
+
+        function hasValidPrefix(jiraLink, prefixRegex) {
+            const container = jiraLink.closest('p, div, li, td, th, span, .comment-body') || jiraLink.parentElement;
+            const textContent = container?.textContent || '';
+            return prefixRegex.test(textContent);
+        }
+
+        let buttonsAdded = 0;
+        
+        if (linkPrefix) {
+            console.log(`${PREFIX} Looking for links with prefix: "${linkPrefix}"`);
+            const escapedPrefix = linkPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const prefixRegex = new RegExp(`(^|\\s|[.,;:!?\\-])${escapedPrefix}`, 'i');
+
+            jiraLinks.forEach((jiraLink) => {
+                if (hasValidPrefix(jiraLink, prefixRegex)) {
+                    console.log(`${PREFIX} Adding button for: ${jiraLink.href}`);
+                    addButtonToLink(jiraLink);
+                    buttonsAdded++;
                 }
             });
-
-            // Add settings to Tampermonkey menu
-            GM_registerMenuCommand('PR-2-Jira Settings', () => {
-                console.log(`${PREFIX} Opening settings dialog`);
-                GM_config.open();
-            });
-
-            // Wait for GM_config to be fully ready, then start the main script
-            setTimeout(() => {
-                console.log(`${PREFIX} Starting GitHub script after GM_config initialization`);
-                runGitHubScript();
-            }, 100);
-        }
-
-        function runGitHubScript() {
-            const jiraLinks = document.querySelectorAll('a[href*="/browse/"]');
-            if (jiraLinks.length === 0) {
-                console.warn(`${PREFIX} No Jira issue link found on this page.`);
-                return;
-            }
-
-            if (document.querySelector('.pr-2-jira-btn')) return;
-
-            const prUrl = window.location.href;
-            const linkPrefix = GM_config.isInit ? GM_config.get('linkPrefix') : 'Solves: Jira ';
-            
-            console.log(`${PREFIX} GM_config.isInit: ${GM_config.isInit}`);
-            console.log(`${PREFIX} Config loaded successfully: ${!!GM_config.fields}`);
-            console.log(`${PREFIX} Retrieved linkPrefix: "${linkPrefix}"`);
-
-            function createButton(jiraLink) {
-                const button = document.createElement("button");
-                button.className = 'pr-2-jira-btn btn btn-sm';
-                button.textContent = "📌 Create PR link in Jira ↗️";
-                button.style.marginLeft = "0.5em";
-                button.title = "Open the Jira issue and send this PR as a remote link";
-
-                button.addEventListener("click", () => {
-                    const jiraUrl = `${jiraLink.href}?prLink=${encodeURIComponent(prUrl)}`;
-                    window.open(jiraUrl, "_blank");
-                });
-
-                return button;
-            }
-
-            function addButtonToLink(jiraLink) {
-                const button = createButton(jiraLink);
-                jiraLink.parentNode.insertBefore(button, jiraLink.nextSibling);
-            }
-
-            function hasValidPrefix(jiraLink, prefixRegex) {
-                const container = jiraLink.closest('p, div, li, td, th, span, .comment-body') || jiraLink.parentElement;
-                const textContent = container?.textContent || '';
-                return prefixRegex.test(textContent);
-            }
-
-            if (linkPrefix) {
-                console.log(`${PREFIX} Looking for links with prefix: "${linkPrefix}"`);
-                const escapedPrefix = linkPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const prefixRegex = new RegExp(`(^|\\s|[.,;:!?\\-])${escapedPrefix}`, 'i');
-
-                jiraLinks.forEach((jiraLink) => {
-                    if (hasValidPrefix(jiraLink, prefixRegex)) {
-                        console.log(`${PREFIX} Adding button for: ${jiraLink.href}`);
-                        addButtonToLink(jiraLink);
-                    }
-                });
-            } else {
-                console.log(`${PREFIX} No prefix configured, adding buttons to all links`);
-                jiraLinks.forEach(addButtonToLink);
-            }
-        }
-
-        // Start the GitHub script when ready
-        if (typeof GM_config !== 'undefined') {
-            initializeScript();
         } else {
-            console.error(`${PREFIX} GM_config is not available`);
+            console.log(`${PREFIX} No prefix configured, adding buttons to all links`);
+            jiraLinks.forEach(addButtonToLink);
+            buttonsAdded = jiraLinks.length;
+        }
+
+        // If no buttons were added, add a standalone settings button
+        if (buttonsAdded === 0) {
+            console.log(`${PREFIX} No matching links found, adding standalone settings button`);
+            addStandaloneSettingsButton();
+        }
+    }
+
+    function addStandaloneSettingsButton() {
+        // Add a small settings button in the top right corner when no PR buttons are shown
+        const settingsButton = document.createElement('button');
+        settingsButton.innerHTML = '⚙️';
+        settingsButton.className = 'pr-2-jira-standalone-settings btn btn-sm';
+        settingsButton.title = 'PR-2-Jira Settings (no matching Jira links found)';
+        settingsButton.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: #656d76;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0.8;
+        `;
+        
+        settingsButton.addEventListener('click', showSettingsDialog);
+        document.body.appendChild(settingsButton);
+    }
+
+    function showSettingsDialog() {
+        const currentPrefix = Settings.get('linkPrefix', 'Solves: Jira ');
+        const newPrefix = prompt('Enter Jira Link Prefix:', currentPrefix);
+        
+        if (newPrefix !== null && newPrefix !== currentPrefix) {
+            Settings.set('linkPrefix', newPrefix);
+            console.log(`${PREFIX} Settings saved: linkPrefix = "${newPrefix}"`);
+            
+            // Show confirmation
+            const notification = document.createElement('div');
+            notification.innerHTML = '✅ PR-2-Jira settings saved! Refreshing buttons...';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #238636;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 6px;
+                z-index: 10000;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(notification);
+            
+            // Remove existing buttons and standalone settings button
+            document.querySelectorAll('.pr-2-jira-btn, .pr-2-jira-settings-btn, .pr-2-jira-standalone-settings').forEach(btn => btn.remove());
+            
+            // Re-run the GitHub script to apply new settings
+            setTimeout(() => {
+                console.log(`${PREFIX} Re-initializing GitHub features with new settings`);
+                initializeGitHubFeatures();
+                
+                setTimeout(() => notification.remove(), 2000);
+            }, 500);
         }
     }
 
@@ -234,29 +269,22 @@
 
         function showToast(title, body, type = "success", autoCloseDelay = null) {
             if (window.AJS?.flag) {
-                console.log(`${PREFIX} AJS.flag available. Testing API...`);
-                console.log(`${PREFIX} AJS.flag function:`, typeof AJS.flag);
+                console.log(`${PREFIX} Using AJS.flag for notification`);
                 
-                // Try AJS.flag with timeout first (newer versions might support it)
                 const flagOptions = { title, body, type };
                 if (autoCloseDelay) {
-                    console.log(`${PREFIX} Attempting auto-close with timeout: ${autoCloseDelay}ms`);
                     flagOptions.close = 'auto';
                     flagOptions.timeout = autoCloseDelay;
                 }
                 
-                console.log(`${PREFIX} Flag options:`, flagOptions);
-                const flag = AJS.flag(flagOptions);
-                console.log(`${PREFIX} Flag result:`, flag);
-                console.log(`${PREFIX} Flag methods:`, flag ? Object.keys(flag) : 'no flag returned');
+                const flag = window.AJS.flag(flagOptions);
                 
-                // Always use manual timeout since Jira's auto-close doesn't seem to work reliably
+                // Manual timeout for auto-close
                 if (autoCloseDelay && flag && flag.close) {
-                    console.log(`${PREFIX} Using manual setTimeout (${autoCloseDelay}ms)`);
                     setTimeout(() => {
                         try {
                             flag.close();
-                            console.log(`${PREFIX} Successfully auto-closed toast`);
+                            console.log(`${PREFIX} Auto-closed toast after ${autoCloseDelay}ms`);
                         } catch (e) {
                             console.log(`${PREFIX} Could not auto-close toast:`, e);
                         }
