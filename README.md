@@ -14,6 +14,8 @@ My collection of Tampermonkey scripts.
   - [🛠️ Jira Board Utils](#️-jira-board-utils)
     - [Features](#features-1)
     - [How it works](#how-it-works-1)
+- [🛠️ Development](#️-development)
+  - [Local Development Server](#local-development-server)
 - [💖 Support](#-support)
 
 ---
@@ -127,6 +129,47 @@ Access settings through by clicking the cogwheel icon. Located next to the "Crea
 - **Team Workflows**: Visual indicators for different teams or components  
 - **Multi-Project Boards**: Clear separation when working with multiple projects
 - **Custom Branding**: Use project avatars or custom images for better visual organization
+
+---
+
+## 🛠️ Development
+
+### Local Development Server
+
+For script development and testing, this repository includes a Vite-based development server that serves your userscripts locally:
+
+```bash
+# Install dependencies
+bun install
+
+# Start development server
+bun dev
+```
+
+> **Note:** You can also use `npm` or `yarn` instead of `bun` - all package managers work equally well for this project.
+
+The server will run on `http://localhost:3000` and provides:
+
+- **Live script serving**: Access scripts at `http://localhost:3000/scripts/[script-name].js`
+  - `http://localhost:3000/scripts/pr-2-jira.js`
+  - `http://localhost:3000/scripts/jira-epic-color-picker.js`
+  - `http://localhost:3000/scripts/boardUtils.js`
+- **Web interface**: Visit `http://localhost:3000` to see all available scripts with copy-paste URLs
+- **Hot reloading**: Changes to scripts are immediately available without server restart
+- **CORS enabled**: Ready for Tampermonkey development workflow
+
+#### Using with Tampermonkey Development:
+
+1. Start the dev server with `bun dev`
+2. Use the provided auto-refresh wrapper template (`auto-refresh-wrapper.js`)
+3. Create a new Tampermonkey script using the template:
+   - Replace `[SCRIPT NAME]` with a descriptive name
+   - Replace `[ADD YOUR MATCH PATTERNS HERE]` with appropriate @match patterns  
+   - Replace `[SCRIPT-FILE-NAME]` with the actual filename
+4. Save the wrapper script in Tampermonkey
+5. Your script will now reload automatically on every page refresh (no caching issues!)
+
+**The wrapper uses dynamic script injection with timestamps to bypass all caching.**
 
 ---
 
