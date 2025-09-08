@@ -11,6 +11,9 @@ My collection of Tampermonkey scripts.
     - [How it works](#how-it-works)
     - [Configuration](#configuration)
   - [🎨 Jira Epic Color Picker](#-jira-epic-color-picker)
+  - [🛠️ Jira Board Utils](#️-jira-board-utils)
+    - [Features](#features-1)
+    - [How it works](#how-it-works-1)
 - [💖 Support](#-support)
 
 ---
@@ -95,6 +98,35 @@ Access settings through by clicking the cogwheel icon. Located next to the "Crea
 **Description:** Replaces Jira's fixed epic color options with a proper color picker, giving you full control over epic colors.
 
 ![Jira Epic Color Picker Screenshot](./docs/jira-epic-color-picker.png)
+
+### 🛠️ Jira Board Utils
+
+**Description:** Add custom project icons to Jira board cards based on configurable color rules. Perfect for visual project identification and team workflows.
+
+![Jira Board Utils Screenshot](./docs/board-utils.png)
+
+#### Features
+
+- **Multi-Board Support**: Each board maintains its own independent configuration
+- **Dynamic Color Rules**: Automatically fetches and displays your board's card color rules from Jira
+- **Project-Based Images**: Simply enter a project key (e.g., "FTWEB") to use that project's avatar
+- **Smart Configuration**: Choose which color rule triggers image placement with an intuitive interface
+- **Automatic Refresh**: Settings are applied instantly without manual page reloads
+- **User-Friendly Setup**: Toggle on/off per board with easy-to-use settings dialog
+
+#### How it works
+
+1. **Open Board Settings**: Click the "Board Utils" button in your Jira board toolbar
+2. **Enable for Board**: Toggle on "Enable Board Utils for this board"
+3. **Choose Color Rule**: Select which card color rule should trigger the image (e.g., `project = "FTWEB"`)
+4. **Set Project Image**: Enter your project key (e.g., "FTWEB") to use that project's avatar, or provide a custom image URL
+5. **Save & Enjoy**: Settings are saved automatically and applied to matching cards
+
+#### Perfect for:
+- **Project Identification**: Quickly identify which project each card belongs to
+- **Team Workflows**: Visual indicators for different teams or components  
+- **Multi-Project Boards**: Clear separation when working with multiple projects
+- **Custom Branding**: Use project avatars or custom images for better visual organization
 
 ---
 
