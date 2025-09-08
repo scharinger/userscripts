@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Jira Epic Color Picker
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.2
+// @version      1.3
 // @description  Replace Jira’s epic color 'ghx-label-#' with a color picker
 // @author       Tim Scharinger
 // @match        https://*/issues/*
@@ -17,6 +17,8 @@
 
 (function () {
   "use strict";
+
+  const PREFIX = '[Epic Color Picker]';
 
   // Configuration
   const CONFIG = {
@@ -76,7 +78,7 @@
     },
     generateId: () =>
       `epic-color-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-    logSuccess: (message, data) => console.log(`[TM] ✅ ${message}`, data),
+    logSuccess: (message, data) => console.log(`${PREFIX} ✅ ${message}`, data),
     showNotification: (title, body) => {
       if (window.AJS && window.AJS.flag) {
         window.AJS.flag({
