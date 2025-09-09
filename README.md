@@ -36,14 +36,25 @@ First, install the Tampermonkey browser extension:
 
 ### 2. Add Scripts
 
-**Method 1: Import from URL (Recommended)**
+**Method 1: Direct Links (Easiest)**
+
+Copy and paste these direct links:
+
+- **PR-2-Jira Script**: [https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/pr-2-jira.js](https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/pr-2-jira.js)
+- **Jira Epic Color Picker**: [https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/jira-epic-color-picker.js](https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/jira-epic-color-picker.js)
+- **Jira Board Utils**: [https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/board-utils.js](https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/board-utils.js)
+
+1. Open Tampermonkey utilities: [chrome-extension://dhdgffkkebhmkfjojejmpbldmpobfkfo/options.html#nav=utils](chrome-extension://dhdgffkkebhmkfjojejmpbldmpobfkfo/options.html#nav=utils)
+2. Paste any of the above raw URLs into **"Import from URL"** and click **"Install"**
+
+**Method 2: Import from URL**
 
 1. Click on the script file in this repository (e.g., `pr-2-jira.js`)
 2. Click the **"Raw"** button and copy the URL from your browser's address bar
 3. Open Tampermonkey utilities: `chrome-extension://dhdgffkkebhmkfjojejmpbldmpobfkfo/options.html#nav=utils`
 4. Paste the raw URL into **"Import from URL"** and click **"Install"**
 
-**Method 2: Manual Copy/Paste**
+**Method 3: Manual Copy/Paste**
 
 1. Click on the script file in this repository (e.g., `pr-2-jira.js`)
 2. Click the **"Raw"** button to view the raw script content
