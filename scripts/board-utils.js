@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Jira Board Utils
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.0
+// @version      1.1
 // @description  Add custom project images to Jira board cards based on configurable color rules
 // @author       Tim Scharinger
 // @match        https://*/secure/RapidBoard.jspa*
 // @icon         https://www.atlassian.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
-// @supportURL   https://github.com/scharinger/userscripts/issues
+// @supportURL   https://github.com/scharinger/userscripts/issues/new?labels=bug&projects=scharinger/1
 // @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/board-utils.js
 // @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/board-utils.js
 // @donate       https://ko-fi.com/scharinger

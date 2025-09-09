@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Jira Epic Color Picker
 // @namespace    https://github.com/scharinger/userscripts
-// @version      1.3
+// @version      1.4
 // @description  Replace Jira’s epic color 'ghx-label-#' with a color picker
 // @author       Tim Scharinger
 // @match        https://*/issues/*
 // @icon         https://www.atlassian.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
-// @supportURL   https://github.com/scharinger/userscripts/issues
+// @supportURL   https://github.com/scharinger/userscripts/issues/new?labels=bug&projects=scharinger/2
 // @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/jira-epic-color-picker.js
 // @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/jira-epic-color-picker.js
 // @donate       https://ko-fi.com/scharinger

@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         PR-2-Jira: GitHub & Jira Integration
 // @namespace    https://github.com/scharinger/userscripts
-// @version      2.1
+// @version      2.2
 // @description  Seamlessly connect GitHub PRs to Jira with smart button placement and automatic link creation
 // @author       Tim Scharinger
 // @match        https://*/*/pull/*
 // @match        https://*/browse/*
 // @icon         https://github.com/favicon.ico
 // @homepageURL  https://github.com/scharinger/userscripts
-// @supportURL   https://github.com/scharinger/userscripts/issues
+// @supportURL   https://github.com/scharinger/userscripts/issues/new?labels=bug&projects=scharinger/3
 // @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira-combined.js
 // @downloadURL  https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/pr-2-jira-combined.js
 // @donate       https://ko-fi.com/scharinger
