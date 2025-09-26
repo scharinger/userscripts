@@ -10,7 +10,7 @@
 // ==/UserScript==
 
 // This wrapper automatically loads your userscript from the dev server with cache-busting.
-// 
+//
 // Instructions:
 // 1. Replace [SCRIPT NAME] with a descriptive name
 // 2. Replace [ADD YOUR MATCH PATTERNS HERE] with appropriate @match patterns
@@ -24,18 +24,20 @@
 // @match        https://*/secure/RapidBoard.jspa*
 // const scriptUrl = `http://localhost:3000/scripts/board-utils.js?t=${timestamp}`;
 
-(function() {
-    'use strict';
-    
-    // Auto-refresh mechanism - loads script with current timestamp
-    const timestamp = Date.now();
-    const scriptUrl = `http://localhost:3000/scripts/[SCRIPT-FILE-NAME].js?t=${timestamp}`;
-    
-    // Create and inject script tag
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.onload = () => console.log('[Dev Wrapper] Script loaded with timestamp:', timestamp);
-    script.onerror = () => console.error('[Dev Wrapper] Failed to load script from:', scriptUrl);
-    
-    document.head.appendChild(script);
-})();
+;(function () {
+  'use strict'
+
+  // Auto-refresh mechanism - loads script with current timestamp
+  const timestamp = Date.now()
+  const scriptUrl = `http://localhost:3000/scripts/[SCRIPT-FILE-NAME].js?t=${timestamp}`
+
+  // Create and inject script tag
+  const script = document.createElement('script')
+  script.src = scriptUrl
+  script.onload = () =>
+    console.log('[Dev Wrapper] Script loaded with timestamp:', timestamp)
+  script.onerror = () =>
+    console.error('[Dev Wrapper] Failed to load script from:', scriptUrl)
+
+  document.head.appendChild(script)
+})()

@@ -1,0 +1,118 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useAltText": "off",
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off",
+        "noAriaUnsupportedElements": "off",
+        "noNoninteractiveTabindex": "off",
+        "useHeadingContent": "off",
+        "useValidAriaRole": "off",
+        "noLabelWithoutControl": "off",
+        "useSemanticElements": "off",
+        "noStaticElementInteractions": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useLiteralKeys": "off",
+        "useSimpleNumberKeys": "off",
+        "useArrowFunction": "off",
+        "noUselessTernary": "off",
+        "useRegexLiterals": "off"
+      },
+      "correctness": {
+        "useIsNan": "off",
+        "useHookAtTopLevel": "error",
+        "noUnusedImports": "error",
+        "useUniqueElementIds": "off",
+        "noUndeclaredDependencies": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "off"
+      },
+      "style": {
+        "useExponentiationOperator": "off",
+        "noParameterAssign": "off",
+        "useEnumInitializers": "off",
+        "useFragmentSyntax": "error",
+        "useLiteralEnumMembers": "off",
+        "useNamingConvention": "off",
+        "useImportType": "off",
+        "useNumberNamespace": "off",
+        "noUselessElse": "off",
+        "useExportType": "off",
+        "useReadonlyClassProperties": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noImplicitAnyLet": "off",
+        "noThenProperty": "off",
+        "noExportsInTest": "off",
+        "noConsole": {
+          "level": "off",
+          "options": {
+            "allow": ["log"]
+          }
+        },
+        "useIterableCallbackReturn": "warn"
+      },
+      "nursery": {
+        "noMisusedPromises": "error"
+      }
+    }
+  },
+  "css": {
+    "linter": {
+      "enabled": true
+    },
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "es5",
+      "quoteProperties": "preserve"
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space"
+    },
+    "parser": {
+      "allowComments": true
+    }
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/build",
+      "!**/__generated__",
+      "!**/coverage",
+      "!**/packages/scripts/bin",
+      "!**/.yarn",
+      "!**/package.json",
+      "!**/esbuild-meta.json"
+    ]
+  }
+}
