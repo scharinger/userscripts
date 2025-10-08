@@ -65,6 +65,33 @@ function openShareModal() {
         document.body.appendChild(img);
         console.log('[Dev mode] .sc-bHnlcS hittades inte, bild ersatte sidans innehåll');
     }
+
+    // Upload base64image as PNG to file.io
+    function base64ToBlob(base64, mime) {
+        const byteString = atob(base64.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mime });
+    }
+    const pngBlob = base64ToBlob(base64image, 'image/png');
+    const formData = new FormData();
+    formData.append('file', pngBlob, 'image.png');
+    fetch('https://file.io', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('[Dev mode] file.io upload response:', data);
+        alert('file.io upload: ' + (data.link || JSON.stringify(data)));
+    })
+    .catch(err => {
+        console.error('[Dev mode] file.io upload error:', err);
+        alert('file.io upload error: ' + err);
+    });
 }
 
 // Inject the Share button next to the Export button
