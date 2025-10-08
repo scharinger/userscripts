@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AXIS Web UI Recording Clip Cloud Share
 // @namespace    https://github.com/scharinger/userscripts
-// @version      0.1
+// @version      0.2
 // @description  Adds a Share button next to the export button to share data via cloud service
 // @author       Tim Scharinger
 // @match        *://*/camera/index.html*
@@ -22,76 +22,74 @@
 console.log("[Dev mode] Script loaded");
 
 // ==== Google Drive konfiguration ====
-// Fyll i din Client ID och (valfritt) API Key från Google Cloud Console.
-// Skapa ett OAuth 2.0 Client (typ Web application) och lägg till origin *eller* använd popup.
-// För enkel test kan du lämna API key tom (Drive upload via OAuth kräver främst clientId och scope).
-const GAPI_CLIENT_ID = 'DIN_CLIENT_ID_HÄR.apps.googleusercontent.com'; // TODO: byt ut
-const GAPI_API_KEY = 'DIN_API_KEY_HÄR'; // (valfri)
-const GAPI_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+// OAuth 2.0 utan gapi - använder direkt API-anrop
+const CLIENT_ID = '319134209137-8jqkfmjct00cpbflffujulrtvuj6n8e2.apps.googleusercontent.com';
+const REDIRECT_URI = 'https://scharinger.github.io/userscripts/oauth.html'; // GitHub Pages redirect
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-let gapiLoaded = false;
-let gapiClientInited = false;
-let gapiLoadingPromise = null;
+let accessToken = null;
 
-function loadGapiScript() {
-    if (gapiLoadingPromise) return gapiLoadingPromise;
-    gapiLoadingPromise = new Promise((resolve, reject) => {
-        const existing = document.querySelector('script[data-cloud-share-gapi]');
-        if (existing) {
-            if (window.gapi) return resolve();
-        }
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.async = true;
-        script.defer = true;
-        script.dataset.cloudShareGapi = '1';
-        script.onload = () => {
-            if (!window.gapi) return reject(new Error('gapi object saknas efter laddning'));
-            gapiLoaded = true;
-            resolve();
+// OAuth 2.0 Implicit Flow - öppnar popup för inloggning med postMessage
+async function authenticateUser() {
+    return new Promise((resolve, reject) => {
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+            `client_id=${CLIENT_ID}&` +
+            `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+            `scope=${encodeURIComponent(SCOPES)}&` +
+            `response_type=token&` +
+            `state=${Math.random().toString(36)}`;
+
+        console.log('[Dev mode] Öppnar OAuth popup med postMessage...');
+        const popup = window.open(authUrl, 'oauth', 'width=500,height=600');
+
+        // Lyssna på meddelanden från redirect-sidan
+        const messageListener = (event) => {
+            // Kontrollera att meddelandet kommer från rätt origin
+            if (event.origin !== 'https://scharinger.github.io') {
+                return;
+            }
+
+            window.removeEventListener('message', messageListener);
+
+            if (event.data.access_token) {
+                console.log('[Dev mode] OAuth token mottagen via postMessage');
+                accessToken = event.data.access_token;
+                popup.close();
+                resolve(accessToken);
+            } else if (event.data.error) {
+                popup.close();
+                reject(new Error('OAuth fel: ' + event.data.error));
+            }
         };
-        script.onerror = () => reject(new Error('Kunde inte ladda gapi script'));
-        document.head.appendChild(script);
+
+        window.addEventListener('message', messageListener);
+
+        // Kontrollera om popup stängdes manuellt
+        const checkClosed = setInterval(() => {
+            if (popup.closed) {
+                clearInterval(checkClosed);
+                window.removeEventListener('message', messageListener);
+                reject(new Error('OAuth popup stängdes'));
+            }
+        }, 1000);
+
+        // Timeout efter 5 minuter
+        setTimeout(() => {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageListener);
+            if (!popup.closed) {
+                popup.close();
+            }
+            reject(new Error('OAuth timeout'));
+        }, 300000);
     });
-    return gapiLoadingPromise;
 }
 
-async function initGapiClient() {
-    if (!GAPI_CLIENT_ID || GAPI_CLIENT_ID.startsWith('DIN_CLIENT_ID')) {
-        throw new Error('GAPI_CLIENT_ID inte konfigurerat i userscriptet.');
+async function ensureAuthenticated() {
+    if (!accessToken) {
+        accessToken = await authenticateUser();
     }
-    if (!gapiLoaded) await loadGapiScript();
-    if (!gapiClientInited) {
-        await new Promise((res, rej) => {
-            window.gapi.load('client:auth2', {
-                callback: res,
-                onerror: () => rej(new Error('gapi.load misslyckades')),
-                timeout: 15000,
-                ontimeout: () => rej(new Error('gapi.load timeout'))
-            });
-        });
-        await window.gapi.client.init({
-            apiKey: GAPI_API_KEY || undefined,
-            clientId: GAPI_CLIENT_ID,
-            scope: GAPI_SCOPES,
-            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        });
-        gapiClientInited = true;
-        console.log('[Dev mode] gapi client init klar');
-    }
-}
-
-async function ensureSignedIn() {
-    const auth = window.gapi.auth2.getAuthInstance();
-    if (!auth) throw new Error('Auth-instans saknas');
-    let user = auth.currentUser.get();
-    if (!user || !user.isSignedIn()) {
-        console.log('[Dev mode] Försöker signa in användare...');
-        await auth.signIn();
-        user = auth.currentUser.get();
-    }
-    if (!user.isSignedIn()) throw new Error('Inloggning avbröts');
-    return user;
+    return accessToken;
 }
 
 function base64ToUint8Array(b64) {
@@ -102,10 +100,7 @@ function base64ToUint8Array(b64) {
 }
 
 async function uploadToDrivePng(base64Payload) {
-    await initGapiClient();
-    await ensureSignedIn();
-    const accessToken = window.gapi.client.getToken()?.access_token;
-    if (!accessToken) throw new Error('Ingen access token');
+    const token = await ensureAuthenticated();
 
     const fileName = 'axis-share-' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
     const metadata = { name: fileName, mimeType: 'image/png' };
@@ -129,7 +124,7 @@ async function uploadToDrivePng(base64Payload) {
     const resp = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
-            'Authorization': 'Bearer ' + accessToken,
+            'Authorization': 'Bearer ' + token,
             'Content-Type': 'multipart/related; boundary=' + boundary
         },
         body: multipartBody
@@ -146,7 +141,7 @@ async function uploadToDrivePng(base64Payload) {
         const permResp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(json.id) + '/permissions?fields=id', {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer ' + accessToken,
+                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ role: 'reader', type: 'anyone' })
