@@ -1,35 +1,28 @@
 // ==UserScript==
-// @name         Dev Wrapper - [SCRIPT NAME]
+// @name         Dev Wrapper
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.2
 // @description  Auto-refreshing wrapper for userscript development
 // @author       Developer
-// @match        [ADD YOUR MATCH PATTERNS HERE]
-// @icon         https://vitejs.dev/logo.svg
+// @match        http://192.168.1.127/camera/index.html
+// @run-at       document-idle
 // @grant        none
 // ==/UserScript==
 
-// This wrapper automatically loads your userscript from the dev server with cache-busting.
-//
-// Instructions:
-// 1. Replace [SCRIPT NAME] with a descriptive name
-// 2. Replace [ADD YOUR MATCH PATTERNS HERE] with appropriate @match patterns
-// 3. Replace [SCRIPT-FILE-NAME] with the actual filename in the script below
-// 4. Save this as a new userscript in Tampermonkey
-// 5. Start your dev server with: bun dev
-// 6. Your script will reload automatically on every page refresh
-//
-// Example:
-// @name         Dev Wrapper - JIRA Board Utils
-// @match        https://*/secure/RapidBoard.jspa*
-// const scriptUrl = `http://localhost:3000/scripts/board-utils.js?t=${timestamp}`;
+const SCRIPT_FILE_NAME = 'cloud-share'
 
-;(function () {
+function onRouteChange() {
   'use strict'
+
+  if (window.location.hash === '#/recordings') {
+    console.log('[Dev Wrapper] Script init for recordings');
+    // Your logic here
+  }
+
 
   // Auto-refresh mechanism - loads script with current timestamp
   const timestamp = Date.now()
-  const scriptUrl = `http://localhost:3000/scripts/[SCRIPT-FILE-NAME].js?t=${timestamp}`
+  const scriptUrl = `http://localhost:3000/scripts/${SCRIPT_FILE_NAME}.js?t=${timestamp}`
 
   // Create and inject script tag
   const script = document.createElement('script')
@@ -40,4 +33,11 @@
     console.error('[Dev Wrapper] Failed to load script from:', scriptUrl)
 
   document.head.appendChild(script)
-})()
+}
+
+// Run on first load
+onRouteChange();
+
+// Run on hash changes
+window.addEventListener('hashchange', onRouteChange);
+
