@@ -381,9 +381,9 @@ setTimeout(() => {
     }
 }, 5000);
 
-// Optionally, you can still inject the Share button if needed elsewhere
-// document.addEventListener("DOMContentLoaded", () => {
-//     if (isRecordingsView()) {
-//         injectShareButton();
-//     }
-// });
+
+// Always start injection and observer on DOMContentLoaded for React SPA reliability
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('[Dev mode] DOMContentLoaded event');
+    injectShareButton(0, true); // Force injection and start observer
+});
