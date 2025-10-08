@@ -8,7 +8,10 @@
 // @match        *://*/camera/*
 // @match        http://localhost:8081/*
 // @include      *://*/
-// @connect      file.io
+// @connect      www.googleapis.com
+// @connect      apis.google.com
+// @connect      accounts.google.com
+// @connect      content.googleapis.com
 // @icon         https://www.axis.com/themes/custom/axiscom/favicon.ico
 // @supportURL   https://github.com/scharinger/userscripts/issues/new?labels=bug&projects=scharinger/1
 // @updateURL    https://raw.githubusercontent.com/scharinger/userscripts/main/scripts/cloud-share.js
@@ -17,6 +20,149 @@
 // ==/UserScript==
 
 console.log("[Dev mode] Script loaded");
+
+// ==== Google Drive konfiguration ====
+// Fyll i din Client ID och (valfritt) API Key från Google Cloud Console.
+// Skapa ett OAuth 2.0 Client (typ Web application) och lägg till origin *eller* använd popup.
+// För enkel test kan du lämna API key tom (Drive upload via OAuth kräver främst clientId och scope).
+const GAPI_CLIENT_ID = 'DIN_CLIENT_ID_HÄR.apps.googleusercontent.com'; // TODO: byt ut
+const GAPI_API_KEY = 'DIN_API_KEY_HÄR'; // (valfri)
+const GAPI_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+let gapiLoaded = false;
+let gapiClientInited = false;
+let gapiLoadingPromise = null;
+
+function loadGapiScript() {
+    if (gapiLoadingPromise) return gapiLoadingPromise;
+    gapiLoadingPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-cloud-share-gapi]');
+        if (existing) {
+            if (window.gapi) return resolve();
+        }
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.async = true;
+        script.defer = true;
+        script.dataset.cloudShareGapi = '1';
+        script.onload = () => {
+            if (!window.gapi) return reject(new Error('gapi object saknas efter laddning'));
+            gapiLoaded = true;
+            resolve();
+        };
+        script.onerror = () => reject(new Error('Kunde inte ladda gapi script'));
+        document.head.appendChild(script);
+    });
+    return gapiLoadingPromise;
+}
+
+async function initGapiClient() {
+    if (!GAPI_CLIENT_ID || GAPI_CLIENT_ID.startsWith('DIN_CLIENT_ID')) {
+        throw new Error('GAPI_CLIENT_ID inte konfigurerat i userscriptet.');
+    }
+    if (!gapiLoaded) await loadGapiScript();
+    if (!gapiClientInited) {
+        await new Promise((res, rej) => {
+            window.gapi.load('client:auth2', {
+                callback: res,
+                onerror: () => rej(new Error('gapi.load misslyckades')),
+                timeout: 15000,
+                ontimeout: () => rej(new Error('gapi.load timeout'))
+            });
+        });
+        await window.gapi.client.init({
+            apiKey: GAPI_API_KEY || undefined,
+            clientId: GAPI_CLIENT_ID,
+            scope: GAPI_SCOPES,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+        });
+        gapiClientInited = true;
+        console.log('[Dev mode] gapi client init klar');
+    }
+}
+
+async function ensureSignedIn() {
+    const auth = window.gapi.auth2.getAuthInstance();
+    if (!auth) throw new Error('Auth-instans saknas');
+    let user = auth.currentUser.get();
+    if (!user || !user.isSignedIn()) {
+        console.log('[Dev mode] Försöker signa in användare...');
+        await auth.signIn();
+        user = auth.currentUser.get();
+    }
+    if (!user.isSignedIn()) throw new Error('Inloggning avbröts');
+    return user;
+}
+
+function base64ToUint8Array(b64) {
+    const byteString = atob(b64);
+    const ia = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    return ia;
+}
+
+async function uploadToDrivePng(base64Payload) {
+    await initGapiClient();
+    await ensureSignedIn();
+    const accessToken = window.gapi.client.getToken()?.access_token;
+    if (!accessToken) throw new Error('Ingen access token');
+
+    const fileName = 'axis-share-' + new Date().toISOString().replace(/[:.]/g, '-') + '.png';
+    const metadata = { name: fileName, mimeType: 'image/png' };
+    const pngBytes = base64ToUint8Array(base64Payload);
+    const boundary = '-------314159265358979323846';
+    const delimiter = '\r\n--' + boundary + '\r\n';
+    const closeDelim = '\r\n--' + boundary + '--';
+
+    const multipartBody =
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) + '\r\n' +
+        delimiter +
+        'Content-Type: image/png\r\n' +
+        'Content-Transfer-Encoding: base64\r\n\r\n' +
+        btoa(String.fromCharCode.apply(null, pngBytes)) +
+        closeDelim;
+
+    const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id%2CwebViewLink%2CwebContentLink';
+    console.log('[Dev mode] Laddar upp till Google Drive...');
+    const resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'multipart/related; boundary=' + boundary
+        },
+        body: multipartBody
+    });
+    if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error('Drive upload misslyckades: ' + resp.status + ' ' + t);
+    }
+    const json = await resp.json();
+    console.log('[Dev mode] Drive upload svar:', json);
+
+    // Gör filen publik (valfritt). För detta krävs ytterligare request.
+    try {
+        const permResp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(json.id) + '/permissions?fields=id', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ role: 'reader', type: 'anyone' })
+        });
+        if (!permResp.ok) {
+            console.warn('[Dev mode] Kunde inte göra fil publik:', await permResp.text());
+        } else {
+            console.log('[Dev mode] Fil gjord publik');
+        }
+    } catch (e) {
+        console.warn('[Dev mode] Fel vid public permission:', e);
+    }
+
+    // webViewLink/webContentLink kan vara undefined tills permission satt
+    return json.webViewLink || json.webContentLink || ('https://drive.google.com/file/d/' + json.id + '/view');
+}
 
 // Helper: are we on the recordings view (hash-based router)?
 function isRecordingsView() {
@@ -93,103 +239,18 @@ function openShareModal() {
         console.log('[Dev mode] .sc-bHnlcS hittades inte, bild ersatte sidans innehåll');
     }
 
-    // Upload base64image as PNG to file.io using GM_xmlhttpRequest or fetch fallback
+    // Ny: ladda upp till Google Drive (gapi)
     const base64Data = base64image.split(',')[1];
-
-    function uploadWithGM(base64Payload) {
-        const boundary = '----UserscriptBoundary' + Date.now().toString(16);
-        const binaryFile = atob(base64Payload); // raw binary string
-        let body = '';
-        body += `--${boundary}\r\n`;
-        body += 'Content-Disposition: form-data; name="file"; filename="image.png"\r\n';
-        body += 'Content-Type: image/png\r\n\r\n';
-        body += binaryFile;
-        body += `\r\n--${boundary}--\r\n`;
-
-        console.log('[Dev mode] Försöker ladda upp via GM_xmlhttpRequest (multipart manual)...');
-
-        GM_xmlhttpRequest({
-            method: 'POST',
-            url: 'https://file.io',
-            data: body,
-            binary: true,
-            headers: {
-                'Content-Type': 'multipart/form-data; boundary=' + boundary,
-                'Accept': 'application/json'
-            },
-            onload: function (response) {
-                const status = response.status;
-                if (status !== 200) {
-                    console.warn('[Dev mode] Oväntad status från file.io:', status, response.responseText);
-                }
-                try {
-                    const data = JSON.parse(response.responseText || '{}');
-                    console.log('[Dev mode] file.io upload response:', data);
-                    if (data.success === false) {
-                        alert('file.io (fel): ' + JSON.stringify(data));
-                    } else {
-                        alert('file.io upload OK: ' + (data.link || JSON.stringify(data)));
-                    }
-                } catch (e) {
-                    console.error('[Dev mode] JSON parse error på svar:', e, response.responseText);
-                    alert('file.io parse error: ' + e);
-                }
-            },
-            onerror: function (err) {
-                console.error('[Dev mode] file.io upload error GM:', err);
-                alert('file.io upload error (GM): ' + err);
-                // Fallback till fetch om möjligt
-                if (typeof fetch !== 'undefined') {
-                    console.log('[Dev mode] Försöker fetch-fallback efter GM-fel...');
-                    uploadWithFetch(base64Payload);
-                }
-            },
-            timeout: 15000,
-            ontimeout: function () {
-                console.error('[Dev mode] file.io upload timeout (GM)');
-                alert('file.io upload timeout (GM)');
-                if (typeof fetch !== 'undefined') {
-                    uploadWithFetch(base64Payload);
-                }
-            }
-        });
-    }
-
-    function uploadWithFetch(base64Payload) {
-        // Bygger FormData för fetch (CORS kan stoppa men vi försöker)
+    (async () => {
         try {
-            const byteString = atob(base64Payload);
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-            const blob = new Blob([ab], { type: 'image/png' });
-            const fd = new FormData();
-            fd.append('file', blob, 'image.png');
-            console.log('[Dev mode] Försöker upload via fetch...');
-            fetch('https://file.io', { method: 'POST', body: fd })
-                .then(r => r.json())
-                .then(data => {
-                    console.log('[Dev mode] file.io upload response (fetch):', data);
-                    alert('file.io (fetch): ' + (data.link || JSON.stringify(data)));
-                })
-                .catch(err => {
-                    console.error('[Dev mode] file.io upload error (fetch):', err);
-                    alert('file.io upload error (fetch): ' + err);
-                });
+            const link = await uploadToDrivePng(base64Data);
+            alert('Drive upload OK: ' + link);
+            console.log('[Dev mode] Delningslänk (ev. efter permission propagation):', link);
         } catch (e) {
-            console.error('[Dev mode] Fel vid fetch-förberedelse:', e);
-            alert('Fel vid fetch-förberedelse: ' + e);
+            console.error('[Dev mode] Drive upload fel:', e);
+            alert('Drive upload fel: ' + e);
         }
-    }
-
-    if (typeof GM_xmlhttpRequest !== 'undefined') {
-        uploadWithGM(base64Data);
-    } else if (typeof fetch !== 'undefined') {
-        uploadWithFetch(base64Data);
-    } else {
-        alert('Ingen upload-metod tillgänglig (varken GM_xmlhttpRequest eller fetch)');
-        console.error('Ingen upload-metod tillgänglig (varken GM_xmlhttpRequest eller fetch)');
-    }
+    })();
 }
 
 // Inject the Share button next to the Export button
@@ -220,7 +281,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Use MutationObserver to rerun injectShareButton when DOM changes
 const observer = new MutationObserver(() => {
-    console.log("[Dev mode] DOM changed, re-evaluating...");
-    injectShareButton();
+    const now = performance.now();
+    if (!window.__cloudShareLastDomLog || now - window.__cloudShareLastDomLog > 1500) {
+        window.__cloudShareLastDomLog = now;
+        console.log("[Dev mode] DOM changed, re-evaluating...");
+    }
+    if (!document.querySelector('.cloud-share-btn')) {
+        injectShareButton();
+    }
 });
 observer.observe(document.body, { childList: true, subtree: true });
