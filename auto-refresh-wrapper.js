@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Dev Wrapper - [SCRIPT NAME]
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Auto-refreshing wrapper for userscript development
 // @author       Developer
 // @match        [ADD YOUR MATCH PATTERNS HERE]
+// @match        *://*
 // @icon         https://vitejs.dev/logo.svg
 // @grant        none
 // ==/UserScript==
@@ -24,12 +25,26 @@
 // @match        https://*/secure/RapidBoard.jspa*
 // const scriptUrl = `http://localhost:3000/scripts/board-utils.js?t=${timestamp}`;
 
-;(function () {
+console.log('[Dev Wrapper] Initialing');
+
+const SCRIPT_FILE_NAME = 'cloud-share'
+const PORT = 3000
+
+console.log('[Dev Wrapper] Initialized', { PORT, SCRIPT_FILE_NAME });
+
+
+function onRouteChange() {
   'use strict'
+
+  if (window.location.hash === '#/recordings') {
+    console.log('[Dev Wrapper] Script init for recordings');
+    // Your logic here
+  }
+
 
   // Auto-refresh mechanism - loads script with current timestamp
   const timestamp = Date.now()
-  const scriptUrl = `http://localhost:3000/scripts/[SCRIPT-FILE-NAME].js?t=${timestamp}`
+  const scriptUrl = `http://localhost:${PORT}/scripts/${SCRIPT_FILE_NAME}.js?t=${timestamp}`
 
   // Create and inject script tag
   const script = document.createElement('script')
@@ -40,4 +55,11 @@
     console.error('[Dev Wrapper] Failed to load script from:', scriptUrl)
 
   document.head.appendChild(script)
-})()
+}
+
+// Run on first load
+onRouteChange();
+
+// Run on hash changes
+window.addEventListener('hashchange', onRouteChange);
+
