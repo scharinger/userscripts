@@ -4,7 +4,7 @@
 // @version      1.0
 // @description  Auto-refreshing wrapper for userscript development
 // @author       Developer
-// @match        [ADD YOUR MATCH PATTERNS HERE]
+// @match        *://*/#/recordings
 // @icon         https://vitejs.dev/logo.svg
 // @grant        none
 // ==/UserScript==
@@ -29,7 +29,7 @@
 
   // Auto-refresh mechanism - loads script with current timestamp
   const timestamp = Date.now()
-  const scriptUrl = `http://localhost:3000/scripts/[SCRIPT-FILE-NAME].js?t=${timestamp}`
+  const scriptUrl = `http://localhost:3000/scripts/cloud-share.js?t=${timestamp}`
 
   // Create and inject script tag
   const script = document.createElement('script')
