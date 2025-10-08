@@ -308,14 +308,24 @@ function openShareModal() {
 
 let mutationObserverStarted = false;
 function injectShareButton(retryCount = 0, force = false) {
-    if (!force && document.querySelector('.cloud-share-btn')) return; // Already there
+    // Prevent double injection: check for our container
+    if (!force && document.querySelector('.cloud-share-container')) return;
     const exportBtn = findExportButton();
     if (exportBtn) {
-        exportBtn.parentNode.insertBefore(
-            createShareButton(exportBtn),
-            exportBtn.nextSibling
-        );
-        console.log('[Dev mode] Share-knapp injicerad bredvid Export');
+        // Create a flex container for Export and Share
+        let container = document.createElement('div');
+        container.className = 'cloud-share-container';
+        container.style.display = 'inline-flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '4px';
+
+        // Move Export button into container
+        exportBtn.parentNode.insertBefore(container, exportBtn);
+        container.appendChild(exportBtn);
+
+        // Add Share button next to Export
+        container.appendChild(createShareButton(exportBtn));
+        console.log('[Dev mode] Share-knapp injicerad bredvid Export i container');
         // Don't disconnect observer - keep watching for new Export buttons
     } else if (retryCount < 15) {
         if (retryCount === 0) {
