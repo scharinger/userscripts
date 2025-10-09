@@ -22,6 +22,22 @@
 console.log("[Dev mode] Script loaded");
 const UPLOAD_FOLDER_NAME = 'Axis camera video clips';
 let uploadFolderId = null;
+// Feature flag: ska vi automatiskt göra filer publika direkt efter upload?
+// Sätt till true om du vill behålla gamla beteendet. Nu default = false för bättre säkerhet.
+const AUTO_PUBLIC_PERMISSION = false;
+
+// Tider för feedback (ms)
+const SHARE_SUCCESS_ICON_MS = 4200; // Hur länge bock-ikonen visas
+const SHARE_LINK_VISIBLE_MS = 4200; // Hur länge Drive-länken visas
+
+// SVG helpers måste ligga före createShareButton och openShareModal
+function getShareIconSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 13.5C14.67 13.5 13.92 13.84 13.38 14.38L7.91 11.13C7.97 10.77 8 10.39 8 10C8 9.61 7.97 9.23 7.91 8.87L13.28 5.68C13.84 6.19 14.62 6.5 15.5 6.5C16.88 6.5 18 5.38 18 4C18 2.62 16.88 1.5 15.5 1.5C14.12 1.5 13 2.62 13 4C13 4.39 13.07 4.76 13.19 5.09L7.82 8.28C7.26 7.77 6.48 7.5 5.5 7.5C4.12 7.5 3 8.62 3 10C3 11.38 4.12 12.5 5.5 12.5C6.48 12.5 7.26 12.23 7.82 11.72L13.19 14.91C13.07 15.24 13 15.61 13 16C13 17.38 14.12 18.5 15.5 18.5C16.88 18.5 18 17.38 18 16C18 14.62 16.88 13.5 15.5 13.5Z" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function getCheckIconSVG() {
+    return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 10.5L9 14.5L15 7.5" stroke="#2ca02c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
 
 // ==== Google Drive konfiguration ====
 // Skapa eller hämta mapp med namn UPLOAD_FOLDER_NAME
@@ -155,24 +171,27 @@ async function uploadToDrivePng(base64Payload) {
     }
     const json = await resp.json();
     console.log('[Dev mode] Drive upload svar:', json);
-
-    // Gör filen publik (valfritt). För detta krävs ytterligare request.
-    try {
-        const permResp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(json.id) + '/permissions?fields=id', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ role: 'reader', type: 'anyone' })
-        });
-        if (!permResp.ok) {
-            console.warn('[Dev mode] Kunde inte göra fil publik:', await permResp.text());
-        } else {
-            console.log('[Dev mode] Fil gjord publik');
+    if (AUTO_PUBLIC_PERMISSION) {
+        // Gör filen publik (valfritt). För detta krävs ytterligare request.
+        try {
+            const permResp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(json.id) + '/permissions?fields=id', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ role: 'reader', type: 'anyone' })
+            });
+            if (!permResp.ok) {
+                console.warn('[Dev mode] Kunde inte göra fil publik:', await permResp.text());
+            } else {
+                console.log('[Dev mode] Fil gjord publik');
+            }
+        } catch (e) {
+            console.warn('[Dev mode] Fel vid public permission:', e);
         }
-    } catch (e) {
-        console.warn('[Dev mode] Fel vid public permission:', e);
+    } else {
+        console.log('[Dev mode] AUTO_PUBLIC_PERMISSION=false -> filen lämnas privat (endast autentiserad användare kan se).');
     }
 
     // webViewLink/webContentLink kan vara undefined tills permission satt
@@ -272,72 +291,178 @@ function findExportButton() {
 }
 
 function createShareButton(referenceBtn = null) {
-    let shareBtn;
-    if (referenceBtn) {
-        // Klona stil från export-knapp
-        shareBtn = referenceBtn.cloneNode(true);
-        shareBtn.textContent = 'Share';
-        // Rensa ev. onclick som följde med
-        shareBtn.replaceWith(shareBtn); // detach any listeners bound via clone (best effort)
-    } else {
-        shareBtn = document.createElement('button');
-        shareBtn.textContent = 'Share';
-    }
-    shareBtn.classList.add('cloud-share-btn');
-    shareBtn.style.marginLeft = '8px';
+    // Skapa en transparent, ikon-only knapp likt soptunnan
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'cloud-share-btn';
+    shareBtn.title = 'Dela till molnet';
+    shareBtn.style.background = 'none';
+    shareBtn.style.border = 'none';
+    shareBtn.style.padding = '4px';
+    shareBtn.style.marginRight = '4px';
     shareBtn.style.cursor = 'pointer';
+    shareBtn.style.opacity = '0.7';
+    shareBtn.style.display = 'flex';
+    shareBtn.style.alignItems = 'center';
+    shareBtn.style.justifyContent = 'center';
+    shareBtn.style.transition = 'opacity 0.2s';
+    shareBtn.onmouseover = () => shareBtn.style.opacity = '1';
+    shareBtn.onmouseout = () => shareBtn.style.opacity = '0.7';
+    shareBtn.innerHTML = getShareIconSVG();
+    function getShareIconSVG() {
+        return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 13.5C14.67 13.5 13.92 13.84 13.38 14.38L7.91 11.13C7.97 10.77 8 10.39 8 10C8 9.61 7.97 9.23 7.91 8.87L13.28 5.68C13.84 6.19 14.62 6.5 15.5 6.5C16.88 6.5 18 5.38 18 4C18 2.62 16.88 1.5 15.5 1.5C14.12 1.5 13 2.62 13 4C13 4.39 13.07 4.76 13.19 5.09L7.82 8.28C7.26 7.77 6.48 7.5 5.5 7.5C4.12 7.5 3 8.62 3 10C3 11.38 4.12 12.5 5.5 12.5C6.48 12.5 7.26 12.23 7.82 11.72L13.19 14.91C13.07 15.24 13 15.61 13 16C13 17.38 14.12 18.5 15.5 18.5C16.88 18.5 18 17.38 18 16C18 14.62 16.88 13.5 15.5 13.5Z" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
+    function getCheckIconSVG() {
+        return `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 10.5L9 14.5L15 7.5" stroke="#2ca02c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
     shareBtn.addEventListener('click', openShareModal, { once: false });
     return shareBtn;
 }
 
 function openShareModal() {
-    // Only trigger upload on click
-    console.log('[Dev mode] Share-knapp klickad, startar uppladdning...');
-    const base64Data = base64image.split(',')[1];
+    console.log('[Dev mode] Share-knapp klickad: initierar exportflöde...');
     (async () => {
+        // Hämta referens till Share-knappen
+        const shareBtn = document.querySelector('.cloud-share-btn');
+        // Hämta/lägg till länkcontainer under wrapper
+        let linkDiv = null;
+        const wrapper = shareBtn ? shareBtn.closest('.cloud-share-wrapper') : null;
+        if (wrapper) {
+            linkDiv = wrapper.querySelector('.cloud-share-link-div');
+            if (!linkDiv) {
+                linkDiv = document.createElement('div');
+                linkDiv.className = 'cloud-share-link-div';
+                linkDiv.style.display = 'block';
+                linkDiv.style.width = '100%';
+                linkDiv.style.fontSize = '13px';
+                linkDiv.style.marginTop = '6px';
+                linkDiv.style.padding = '6px 8px';
+                linkDiv.style.borderRadius = '6px';
+                linkDiv.style.background = 'rgba(240,240,245,0.95)';
+                linkDiv.style.border = '1px solid #e0e0e0';
+                linkDiv.style.boxShadow = '0 1px 4px 0 rgba(0,0,0,0.04)';
+                linkDiv.style.wordBreak = 'break-all';
+                linkDiv.style.opacity = '0.92';
+                linkDiv.style.textAlign = 'left';
+                linkDiv.style.position = 'relative';
+                wrapper.appendChild(linkDiv);
+            }
+            linkDiv.textContent = '';
+        }
+        // Viktigt: autentisera DIREKT i klickhändelsen innan vi gör tunga async (för att undvika popup-blocker)
+        if (!accessToken) {
+            try {
+                console.log('[Dev mode] Initierar autentisering direkt vid klick...');
+                await ensureAuthenticated();
+                console.log('[Dev mode] Autentisering klar (token erhållen).');
+            } catch (authErr) {
+                if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+                if (linkDiv) linkDiv.textContent = '';
+                console.error('[Dev mode] Autentisering misslyckades (avbryter flöde):', authErr);
+                alert('Kunde inte autentisera mot Google Drive (popup blockerad eller avbruten). Tillåt popup och försök igen.');
+                return; // Avbryt hela share-flödet
+            }
+        } else {
+            // Token redan finns
+            console.log('[Dev mode] Återanvänder existerande accessToken.');
+        }
+
+        let meta;
         try {
-            const link = await uploadToDrivePng(base64Data);
-            alert('Drive upload OK: ' + link);
-            console.log('[Dev mode] Delningslänk (ev. efter permission propagation):', link);
+            meta = getRecordingMetadata();
+            console.log('[Dev mode] Metadata extraherad:', meta);
         } catch (e) {
-            console.error('[Dev mode] Drive upload fel:', e);
-            alert('Drive upload fel: ' + e);
+            console.warn('[Dev mode] Kunde inte hämta metadata – fallback till bild:', e);
+        }
+
+        if (!meta || !meta.recordingId || !meta.fromParts || !meta.toParts) {
+            console.warn('[Dev mode] Ofullständig metadata, använder fallback-bild.');
+            const base64Data = base64image.split(',')[1];
+            try {
+                const link = await uploadToDrivePng(base64Data);
+                if (shareBtn) shareBtn.innerHTML = getCheckIconSVG();
+                if (linkDiv) linkDiv.innerHTML = `<a href="${link}" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:underline;font-weight:500;transition:color 0.2s;">Drive-länk (bild)</a>`;
+                setTimeout(() => {
+                    if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+                }, SHARE_SUCCESS_ICON_MS);
+                setTimeout(() => {
+                    if (linkDiv) linkDiv.textContent = '';
+                }, SHARE_LINK_VISIBLE_MS);
+                alert('Drive upload OK (bild fallback): ' + link);
+                return;
+            } catch (e) {
+                if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+                if (linkDiv) linkDiv.textContent = '';
+                console.error('[Dev mode] Fallback upload misslyckades:', e);
+                alert('Upload fel: ' + e);
+                return;
+            }
+        }
+
+        try {
+            const exportInfo = buildExportUrl(meta, { padSeconds: 1 });
+            console.log('[Dev mode] Export URL byggd:', exportInfo.url, exportInfo.params);
+            const blob = await fetchRecordingBlob(exportInfo.url);
+            console.log('[Dev mode] Export fetch klar. Storlek ~' + (blob.size / 1024 / 1024).toFixed(2) + ' MB');
+
+            const filenameBase = sanitizeFilename(meta.filename || meta.recordingId || 'recording');
+            const driveFilename = filenameBase + '.mkv'; // behåll originalformat (.mkv)
+            console.log('[Dev mode] Laddar upp video till Drive som', driveFilename);
+            const link = await uploadToDriveFile(blob, driveFilename, 'video/x-matroska');
+            if (shareBtn) shareBtn.innerHTML = getCheckIconSVG();
+            if (linkDiv) linkDiv.innerHTML = `<a href="${link}" target="_blank" rel="noopener" style="color:#1976d2;text-decoration:underline;font-weight:500;transition:color 0.2s;">Drive-länk (video)</a>`;
+            setTimeout(() => {
+                if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+            }, SHARE_SUCCESS_ICON_MS);
+            setTimeout(() => {
+                if (linkDiv) linkDiv.textContent = '';
+            }, SHARE_LINK_VISIBLE_MS);
+            alert('Video uppladdad: ' + link);
+            console.log('[Dev mode] Delningslänk:', link);
+        } catch (e) {
+            if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+            if (linkDiv) linkDiv.textContent = '';
+            console.error('[Dev mode] Export/video-flöde misslyckades, försöker fallback-bild:', e);
+            try {
+                const base64Data = base64image.split(',')[1];
+                const link = await uploadToDrivePng(base64Data);
+                if (shareBtn) shareBtn.innerHTML = getCheckIconSVG();
+                if (linkDiv) linkDiv.innerHTML = `<a href="${link}" target="_blank" rel="noopener">Drive-länk (bild)</a>`;
+                setTimeout(() => {
+                    if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+                    if (linkDiv) linkDiv.textContent = '';
+                }, 4200);
+                alert('Video misslyckades, bild uppladdad istället: ' + link);
+            } catch (e2) {
+                if (shareBtn) shareBtn.innerHTML = getShareIconSVG();
+                if (linkDiv) linkDiv.textContent = '';
+                console.error('[Dev mode] Även fallback-bild misslyckades:', e2);
+                alert('Delning misslyckades: ' + e2);
+            }
         }
     })();
 }
 
 let mutationObserverStarted = false;
 function injectShareButton(retryCount = 0, force = false) {
-    // Prevent double injection: check for our container
-    if (!force && document.querySelector('.cloud-share-container')) return;
     const exportBtn = findExportButton();
     if (exportBtn) {
-        // Create a flex container for Export and Share
-        let container = document.createElement('div');
-        container.className = 'cloud-share-container';
-        container.style.display = 'inline-flex';
-        container.style.alignItems = 'center';
-        container.style.gap = '4px';
-
-        // Move Export button into container
-        exportBtn.parentNode.insertBefore(container, exportBtn);
-        container.appendChild(exportBtn);
-
-        // Add Share button next to Export
-        container.appendChild(createShareButton(exportBtn));
-        console.log('[Dev mode] Share-knapp injicerad bredvid Export i container');
-        // Don't disconnect observer - keep watching for new Export buttons
+        wrapExportAndEnsureShare(exportBtn, force);
     } else if (retryCount < 15) {
         if (retryCount === 0) {
-            // Logga vilka knappar vi ser för debug
             const texts = [...document.querySelectorAll('button')].map(b => (b.textContent || '').trim()).filter(Boolean);
             console.log('[Dev mode] Hittar ännu ingen Export-knapp. Befintliga knapptexter:', texts);
         }
         setTimeout(() => injectShareButton(retryCount + 1, force), 400);
     } else {
-        // Fallback in target div
         const targetDiv = document.querySelector('.sc-bHnlcS');
+        // Om targetDiv bara innehåller en bild, injicera INTE Share-knapp
         if (targetDiv && !document.querySelector('.cloud-share-btn')) {
+            const onlyImg = targetDiv.childNodes.length === 1 && targetDiv.firstElementChild && targetDiv.firstElementChild.tagName === 'IMG';
+            if (onlyImg) {
+                console.log('[Dev mode] Ingen Export-knapp och endast bild i targetDiv – Share-knapp injiceras INTE.');
+                return;
+            }
             targetDiv.appendChild(createShareButton());
             console.log('[Dev mode] Fallback: Share-knapp injicerad i targetDiv (Export hittades aldrig)');
         }
@@ -397,3 +522,259 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log('[Dev mode] DOMContentLoaded event');
     injectShareButton(0, true); // Force injection and start observer
 });
+
+// ---- Metadata extraction & helper logic ----
+function getTextFollowing(labelText) {
+    const labels = Array.from(document.querySelectorAll('p, label'));
+    for (const el of labels) {
+        if ((el.textContent || '').trim().toLowerCase() === labelText.toLowerCase()) {
+            // For <p> pattern the nextElementSibling holds the value
+            let sib = el.nextElementSibling;
+            if (sib && sib.tagName === 'SPAN') return sib.textContent.trim();
+            // For label+input areas we may need to look ahead
+            if (el.tagName === 'LABEL') {
+                // Next sibling container then inputs
+                let container = el.nextElementSibling;
+                if (!container) continue;
+                const inputs = container.querySelectorAll('input');
+                if (inputs.length > 0) return Array.from(inputs).map(i => i.value).join(' ');
+            }
+        }
+    }
+    return null;
+}
+
+function getRecordingMetadata() {
+    const recordingId = getTextFollowing('Recording ID:');
+    const diskId = getTextFollowing('Disk ID:');
+    const fromValues = getRangeValues('From');
+    const toValues = getRangeValues('To');
+    const filenameInput = document.querySelector('input[name="filename"]');
+    const filename = filenameInput ? filenameInput.value : null;
+    return { recordingId, diskId, from: fromValues?.iso || null, to: toValues?.iso || null, fromParts: fromValues || null, toParts: toValues || null, filename };
+}
+
+function getRangeValues(label) {
+    const labels = Array.from(document.querySelectorAll('label'));
+    const target = labels.find(l => (l.textContent || '').trim().toLowerCase() === label.toLowerCase());
+    if (!target) return null;
+    let container = target.nextElementSibling; // div with two fields
+    if (!container) return null;
+    const inputs = container.querySelectorAll('input');
+    if (inputs.length < 2) return null;
+    const date = inputs[0].value;
+    const time = inputs[1].value;
+    if (!date || !time) return { date, time, iso: null };
+    // Normalize time to HH:MM:SS if missing seconds
+    let t = time.trim();
+    if (/^\d{2}:\d{2}$/.test(t)) t += ':00';
+    // Compose local ISO (without timezone adjustments) and also Date object
+    const iso = new Date(date + 'T' + t).toISOString();
+    return { date, time: t, iso };
+}
+
+// ---- Export URL construction & video fetch ----
+function buildExportUrl(meta, { padSeconds = 0 } = {}) {
+    // Parse local dates from parts (already normalized with seconds)
+    const start = new Date(meta.fromParts.date + 'T' + meta.fromParts.time);
+    const stop = new Date(meta.toParts.date + 'T' + meta.toParts.time);
+    if (padSeconds) {
+        start.setSeconds(start.getSeconds() - padSeconds);
+        stop.setSeconds(stop.getSeconds() + padSeconds);
+    }
+    const startStr = formatLocalDateTimeWithOffset(start);
+    const stopStr = formatLocalDateTimeWithOffset(stop);
+    const filenameParam = sanitizeFilename(meta.filename || meta.recordingId || 'recording');
+    const params = {
+        schemaversion: '1',
+        recordingid: meta.recordingId,
+        diskid: meta.diskId || 'SD_DISK',
+        exportformat: 'matroska',
+        filename: filenameParam,
+        starttime: startStr,
+        stoptime: stopStr
+    };
+    const qs = Object.entries(params)
+        .map(([k, v]) => k + '=' + encodeURIComponent(v).replace(/%20/g, '+'))
+        .join('&');
+    // Assume same origin (camera) – fallback to location.origin
+    const base = location.origin;
+    const url = base + '/axis-cgi/record/export/exportrecording.cgi?' + qs;
+    return { url, params };
+}
+
+function formatLocalDateTimeWithOffset(d) {
+    const pad = n => String(n).padStart(2, '0');
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const mins = pad(d.getMinutes());
+    const secs = pad(d.getSeconds());
+    const ms = '000';
+    const offsetMin = -d.getTimezoneOffset(); // minutes east of UTC
+    const sign = offsetMin >= 0 ? '+' : '-';
+    const abs = Math.abs(offsetMin);
+    const offH = pad(Math.floor(abs / 60));
+    const offM = pad(abs % 60);
+    return `${year}-${month}-${day}T${hours}:${mins}:${secs}.${ms}${sign}${offH}:${offM}`;
+}
+
+async function fetchRecordingBlob(url) {
+    console.log('[Dev mode] Hämtar video från exportendpoint...');
+    const resp = await fetch(url, { method: 'GET' });
+    if (!resp.ok) {
+        throw new Error('Export request misslyckades: ' + resp.status + ' ' + resp.statusText);
+    }
+    const contentLength = resp.headers.get('Content-Length');
+    if (!resp.body || typeof resp.body.getReader !== 'function') {
+        console.log('[Dev mode] Ingen stream, använder blob() direkt');
+        return await resp.blob();
+    }
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+    const total = contentLength ? parseInt(contentLength, 10) : null;
+    let lastLog = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+            chunks.push(value);
+            received += value.length;
+            const now = performance.now();
+            if (now - lastLog > 750) {
+                if (total) {
+                    console.log(`[Dev mode] Nedladdning ${((received / total) * 100).toFixed(1)}% (${(received / 1024 / 1024).toFixed(2)} MB / ${(total / 1024 / 1024).toFixed(2)} MB)`);
+                } else {
+                    console.log(`[Dev mode] Nedladdning ${(received / 1024 / 1024).toFixed(2)} MB (okänt total)`);
+                }
+                lastLog = now;
+            }
+        }
+    }
+    console.log('[Dev mode] Nedladdning klar, bygger Blob...');
+    return new Blob(chunks, { type: 'video/x-matroska' });
+}
+
+function sanitizeFilename(name) {
+    return (name || 'recording').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 120);
+}
+
+async function uploadToDriveFile(blob, filename, mimeType) {
+    const token = await ensureAuthenticated();
+    const folderId = await getOrCreateUploadFolder(token);
+    const metadata = { name: filename, mimeType, parents: [folderId] };
+
+    // Multipart/related med binär del (ingen base64) – effektivare minne och snabbare
+    const boundary = '-------axis-drive-upload-' + Math.random().toString(36).slice(2);
+    const part1Header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`;
+    const part1Body = JSON.stringify(metadata) + '\r\n';
+    const part2Header = `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+    const partClose = `\r\n--${boundary}--`;
+    const multipartBlob = new Blob([
+        part1Header,
+        part1Body,
+        part2Header,
+        blob,
+        partClose
+    ], { type: 'multipart/related; boundary=' + boundary });
+
+    console.log('[Dev mode] Startar Drive-upload (binär multipart). Storlek ~' + (multipartBlob.size / 1024 / 1024).toFixed(2) + ' MB');
+    const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id%2CwebViewLink%2CwebContentLink';
+    let resp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': multipartBlob.type },
+        body: multipartBlob
+    });
+    if (!resp.ok) {
+        const text = await resp.text();
+        console.warn('[Dev mode] Multipart binär upload misslyckades, försök fallback base64. Svar:', resp.status, text.slice(0, 300));
+        // Fallback: base64 (endast om något oförutsett händer, t.ex. proxy fel)
+        try {
+            const base64Data = await blobToBase64(blob);
+            const b2 = '-------fallback' + Math.random().toString(36).slice(2);
+            const delimiter = '\r\n--' + b2 + '\r\n';
+            const closeDelim = '\r\n--' + b2 + '--';
+            const multipartBody =
+                delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + '\r\n' +
+                delimiter + 'Content-Type: ' + mimeType + '\r\nContent-Transfer-Encoding: base64\r\n\r\n' + base64Data + closeDelim;
+            resp = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + b2 },
+                body: multipartBody
+            });
+            if (!resp.ok) {
+                throw new Error('Fallback base64 misslyckades: ' + resp.status + ' ' + await resp.text());
+            }
+        } catch (fbErr) {
+            throw new Error('Drive upload misslyckades (alla försök): ' + fbErr);
+        }
+    }
+    const json = await resp.json();
+    if (AUTO_PUBLIC_PERMISSION) {
+        try {
+            await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(json.id) + '/permissions?fields=id', {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: 'reader', type: 'anyone' })
+            });
+        } catch (e) {
+            console.warn('[Dev mode] Kunde inte sätta public permission (video):', e);
+        }
+    } else {
+        console.log('[Dev mode] AUTO_PUBLIC_PERMISSION=false -> videon lämnas privat.');
+    }
+    return json.webViewLink || json.webContentLink || ('https://drive.google.com/file/d/' + json.id + '/view');
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const idx = dataUrl.indexOf(',');
+            resolve(idx >= 0 ? dataUrl.substring(idx + 1) : dataUrl);
+        };
+        reader.onerror = err => reject(err);
+        reader.readAsDataURL(blob);
+    });
+}
+
+// Wrap export button and ensure exactly one share button
+function wrapExportAndEnsureShare(exportBtn, force = false) {
+    // If already wrapped
+    if (exportBtn.parentElement && exportBtn.parentElement.classList.contains('cloud-share-wrapper')) {
+        dedupeShareButtons(exportBtn.parentElement);
+        if (!exportBtn.parentElement.querySelector('.cloud-share-btn')) {
+            // Lägg Share FÖRE Export
+            exportBtn.parentElement.insertBefore(createShareButton(exportBtn), exportBtn);
+            console.log('[Dev mode] Share-knapp tillagd före Export i existerande wrapper (saknades)');
+        }
+        return;
+    }
+    const parent = exportBtn.parentNode;
+    if (!parent) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cloud-share-wrapper';
+    wrapper.style.display = 'inline-flex';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.gap = '4px';
+    parent.insertBefore(wrapper, exportBtn);
+    // Lägg Share FÖRE Export
+    const shareBtn = createShareButton(exportBtn);
+    wrapper.appendChild(shareBtn);
+    wrapper.appendChild(exportBtn);
+    // Move any pre-existing share buttons near export into wrapper (dedupe later)
+    const strayShares = Array.from(parent.querySelectorAll('.cloud-share-btn'));
+    strayShares.forEach(btn => wrapper.insertBefore(btn, wrapper.firstChild));
+    dedupeShareButtons(wrapper);
+    console.log('[Dev mode] Export inlindad i wrapper och Share säkerställd (Share före Export)');
+}
+
+function dedupeShareButtons(scopeEl) {
+    const shares = Array.from(scopeEl.querySelectorAll('.cloud-share-btn'));
+    if (shares.length <= 1) return;
+    // Keep first, remove rest
+    shares.slice(1).forEach(b => b.remove());
+    console.log('[Dev mode] Borttog dubbletter av Share-knappar (' + (shares.length - 1) + ')');
+}
