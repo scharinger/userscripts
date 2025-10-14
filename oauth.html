@@ -33,34 +33,63 @@
     </div>
 
     <script>
-    (function() {
-        const statusDiv = document.getElementById('status');
-        // Try to make the popup compact immediately. Some browsers block resize calls
-        // for security/UX reasons; the try/catch keeps this safe.
-        try { if (window.resizeTo) window.resizeTo(420, 160); } catch(_) {}
-        function parseFragment() {
-            const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
-            const params = new URLSearchParams(hash);
-            const obj = {};
-            for (const [k,v] of params.entries()) obj[k] = v;
-            return obj;
-        }
-        function post(msg) {
-            try { window.opener && window.opener.postMessage(msg, '*'); } catch(_) {}
-        }
-        try {
-            const data = parseFragment();
-            if (data.access_token) {
-                statusDiv.innerHTML = '<div class="success">✓ Authorization successful!<br>Stänger fönstret...</div>';
-                post({ type: 'OAUTH_SUCCESS', token: data.access_token, expires_in: data.expires_in, token_type: data.token_type });
-                // Close quicker so the page is visible for a shorter time
-                setTimeout(() => { try { window.close(); } catch(_) {} }, 400);
-            } else if (data.error) {
-                statusDiv.innerHTML = '<div class="error">✗ Authorization failed:<br>' + data.error + '</div>';
-                post({ type: 'OAUTH_ERROR', error: data.error, error_description: data.error_description });
-            } else {
-                statusDiv.innerHTML = '<div class="error">✗ No authorization data received</div>';
-                post({ type: 'OAUTH_ERROR', error: 'no_token_received' });
+        (function() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Parse URL fragment for access_token
+                const hash = window.location.hash.substring(1);
+                const params = new URLSearchParams(hash);
+                
+                const accessToken = params.get('access_token');
+                const error = params.get('error');
+                
+                if (accessToken) {
+                    statusDiv.innerHTML = '<div class="success">✓ Authorization successful!<br>You can close this window.</div>';
+                    
+                    // Send token back to parent window
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            access_token: accessToken,
+                            expires_in: params.get('expires_in'),
+                            token_type: params.get('token_type')
+                        }, '*');
+                    }
+                    
+                    // Close after a brief delay
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
+                    
+                } else if (error) {
+                    statusDiv.innerHTML = '<div class="error">✗ Authorization failed:<br>' + error + '</div>';
+                    
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            error: error,
+                            error_description: params.get('error_description')
+                        }, '*');
+                    }
+                    
+                } else {
+                    statusDiv.innerHTML = '<div class="error">✗ No authorization data received</div>';
+                    
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            error: 'no_token_received'
+                        }, '*');
+                    }
+                }
+                
+            } catch (e) {
+                statusDiv.innerHTML = '<div class="error">✗ Error processing authorization:<br>' + e.message + '</div>';
+                
+                if (window.opener) {
+                    window.opener.postMessage({
+                        error: 'processing_error',
+                        error_description: e.message
+                    }, '*');
+                }
             }
         })();
     </script>
