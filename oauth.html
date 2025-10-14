@@ -24,72 +24,102 @@
         .error {
             color: #dc3545;
         }
+        .version {
+            font-size: 13px;
+            color: #666;
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>OAuth Authorization</h2>
+        <div id="version" class="version">Version: v2</div>
         <div id="status">Processing authorization...</div>
     </div>
 
     <script>
-    (function() {
-        const statusDiv = document.getElementById('status');
-        try {
-            // Parse URL fragment for access_token
-            const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
-            const params = new URLSearchParams(hash);
+        (function() {
+            const statusDiv = document.getElementById('status');
+            const versionDiv = document.getElementById('version');
+            // DRY constants
+            const VERSION = '3';
+            const CLOSE_DELAY_MS = 4400; // how long the success message is shown before window.close()
+            // Centralized visible text so the body content is DRY and easy to change
+            const TEXTS = {
+                TITLE: 'OAuth Authorization',
+                PROCESSING: 'Processing authorization...',
+                SUCCESS: '✓ Authorization successful!<br>You can close this window.',
+                ERROR_PREFIX: '✗ Authorization failed:<br>',
+                NO_DATA: '✗ No authorization data received',
+                ERROR_PROCESS: '✗ Error processing authorization:<br>'
+            };
+            // Set version from the constant (no runtime fetch)
+            try { if (versionDiv) versionDiv.textContent = 'Version: v' + VERSION; } catch(_) {}
 
-            const accessToken = params.get('access_token');
-            const error = params.get('error');
-
-            if (accessToken) {
-                statusDiv.innerHTML = '<div class="success">✓ Authorization successful!<br>Stänger fönstret...</div>';
-
-                // Send token back to parent window
-                if (window.opener) {
-                    try {
+            // Use TEXTS to populate the page content (DRY)
+            try {
+                const titleEl = document.querySelector('.container h2');
+                if (titleEl) titleEl.textContent = TEXTS.TITLE;
+                if (statusDiv) statusDiv.innerHTML = TEXTS.PROCESSING;
+            } catch(_) {}
+            
+            try {
+                // Parse URL fragment for access_token
+                const hash = window.location.hash.substring(1);
+                const params = new URLSearchParams(hash);
+                
+                const accessToken = params.get('access_token');
+                const error = params.get('error');
+                
+                if (accessToken) {
+                    statusDiv.innerHTML = '<div class="success">' + TEXTS.SUCCESS + '</div>';
+                    
+                    // Send token back to parent window
+                    if (window.opener) {
                         window.opener.postMessage({
                             access_token: accessToken,
                             expires_in: params.get('expires_in'),
                             token_type: params.get('token_type')
                         }, '*');
-                    } catch(_) {}
-                }
-
-                // Close after a short delay so the user sees the success briefly
-                setTimeout(() => {
-                    try { window.close(); } catch(_) {}
-                }, 400);
-
-            } else if (error) {
-                statusDiv.innerHTML = '<div class="error">✗ Authorization failed:<br>' + error + '</div>';
-
-                if (window.opener) {
-                    try {
+                    }
+                    
+                        // Close after a brief delay (configured above)
+                        setTimeout(() => {
+                            try { window.close(); } catch(_) {}
+                        }, CLOSE_DELAY_MS);
+                    
+                } else if (error) {
+                    statusDiv.innerHTML = '<div class="error">' + TEXTS.ERROR_PREFIX + error + '</div>';
+                    
+                    if (window.opener) {
                         window.opener.postMessage({
                             error: error,
                             error_description: params.get('error_description')
                         }, '*');
-                    } catch(_) {}
+                    }
+                    
+                } else {
+                    statusDiv.innerHTML = '<div class="error">' + TEXTS.NO_DATA + '</div>';
+                    
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            error: 'no_token_received'
+                        }, '*');
+                    }
                 }
-
-            } else {
-                statusDiv.innerHTML = '<div class="error">✗ No authorization data received</div>';
-
-                if (window.opener) {
-                    try { window.opener.postMessage({ error: 'no_token_received' }, '*'); } catch(_) {}
-                }
-            }
-
+                
         } catch (e) {
-            statusDiv.innerHTML = '<div class="error">✗ Error processing authorization:<br>' + e.message + '</div>';
-
-            if (window.opener) {
-                try { window.opener.postMessage({ error: 'processing_error', error_description: e.message }, '*'); } catch(_) {}
+            statusDiv.innerHTML = '<div class="error">' + TEXTS.ERROR_PROCESS + e.message + '</div>';
+                
+                if (window.opener) {
+                    window.opener.postMessage({
+                        error: 'processing_error',
+                        error_description: e.message
+                    }, '*');
+                }
             }
-        }
-    })();
+        })();
     </script>
 </body>
 </html>
