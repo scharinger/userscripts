@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PR-2-Jira: GitHub & Jira Integration
 // @namespace    https://github.com/scharinger/userscripts
-// @version      2.3
+// @version      2.4
 // @description  Seamlessly connect GitHub PRs to Jira with smart button placement and automatic link creation
 // @author       Tim Scharinger
 // @match        https://*/*/pull/*
@@ -349,14 +349,42 @@
     }
   }
 
-  // Main initialization
-  const pageType = detectPageType()
-  console.log(`${PREFIX} Detected page type: ${pageType}`)
-  if (pageType === 'github') {
-    initializeGitHubFeatures()
-  } else if (pageType === 'jira') {
-    initializeJiraFeatures()
-  } else {
-    console.log(`${PREFIX} No matching page type found`)
+  // Main initialization function
+  function initialize() {
+    const pageType = detectPageType()
+    console.log(`${PREFIX} Detected page type: ${pageType}`)
+    if (pageType === 'github') {
+      initializeGitHubFeatures()
+    } else if (pageType === 'jira') {
+      initializeJiraFeatures()
+    } else {
+      console.log(`${PREFIX} No matching page type found`)
+    }
+  }
+
+  // Initialize on first load
+  initialize()
+
+  // Listen for GitHub's SPA navigation (back/forward, popstate)
+  window.addEventListener('popstate', () => {
+    console.log(`${PREFIX} URL changed (popstate), re-initializing...`)
+    initialize()
+  })
+
+  // Listen for pushState changes (when GitHub navigates without reload)
+  // We need to override history.pushState to detect navigation
+  const originalPushState = window.history.pushState
+  window.history.pushState = function (...args) {
+    originalPushState.apply(window.history, args)
+    console.log(`${PREFIX} URL changed (pushState), re-initializing...`)
+    initialize()
+  }
+
+  // Also listen for replaceState
+  const originalReplaceState = window.history.replaceState
+  window.history.replaceState = function (...args) {
+    originalReplaceState.apply(window.history, args)
+    console.log(`${PREFIX} URL changed (replaceState), re-initializing...`)
+    initialize()
   }
 })()
