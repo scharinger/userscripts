@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PR-2-Jira: GitHub & Jira Integration
 // @namespace    https://github.com/scharinger/userscripts
-// @version      2.4
+// @version      2.5
 // @description  Seamlessly connect GitHub PRs to Jira with smart button placement and automatic link creation
 // @author       Tim Scharinger
 // @match        https://*/*/pull/*
@@ -45,7 +45,8 @@
     const hostname = window.location.hostname.toLowerCase()
     const pathname = window.location.pathname
 
-    if (hostname.includes('github') && pathname.includes('/pull/')) {
+    // Match GitHub PR pages but not commits/files/etc subpages
+    if (hostname.includes('github') && /\/pull\/\d+\/?$/.test(pathname)) {
       return 'github'
     } else if (hostname.includes('jira') && pathname.includes('/browse/')) {
       return 'jira'
