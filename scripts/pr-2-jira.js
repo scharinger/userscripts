@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PR-2-Jira: GitHub & Jira Integration
 // @namespace    https://github.com/scharinger/userscripts
-// @version      2.5
+// @version      2.6
 // @description  Seamlessly connect GitHub PRs to Jira with smart button placement and automatic link creation
 // @author       Tim Scharinger
 // @match        https://*/*/pull/*
@@ -227,7 +227,9 @@
       return
     }
     console.log(`${PREFIX} starting Jira functionality`, { issueKey, prLink })
-    addPRLink(issueKey, prLink)
+    const prNumber = prLink.match(/\/pull\/(\d+)/)?.[1]
+    const prTitle = prNumber ? `PR (#${prNumber})` : 'PR'
+    addPRLink(issueKey, prLink, prTitle)
   }
 
   async function addPRLink(
