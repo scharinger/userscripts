@@ -14,6 +14,7 @@ My collection of Tampermonkey scripts.
   - [🛠️ Jira Board Utils](#️-jira-board-utils)
     - [Features](#features-1)
     - [How it works](#how-it-works-1)
+  - [🧾 Aditro: HR Calendar Flex Fix](#-aditro-hr-calendar-flex-fix)
 - [🛠️ Development](#️-development)
   - [Local Development Server](#local-development-server)
 - [💖 Support](#-support)
@@ -142,6 +143,23 @@ Access settings through by clicking the cogwheel icon. Located next to the "Crea
 - **Custom Branding**: Use project avatars or custom images for better visual organization
 
 ---
+
+### 🧾 Aditro: HR Calendar Flex Fix
+
+**Description:** Cleans up and highlights flexible working hour entries on Aditro/HR calendar pages. The script normalizes verbose transaction text to a compact `Flex in/out X.XX h`, applies color styling, and prints a small console summary of total flex hours.
+
+![Aditro HR Calendar Flex Fix Screenshot](./docs/aditro.png)
+
+- **Script:** `scripts/aditro.js`
+- **Match:** `https://hr.aditro.com/*`
+- **Features:**
+  - Normalizes calendar transaction text to `Flex in` / `Flex out` with hours
+  - Applies green/red styling to entries for quick visual scanning
+  - Calculates total flex and logs a console table with day/type/hours
+  - Runs on a 3s interval to update dynamically loaded content
+- **Install:** Add the script via Tampermonkey using the raw URL:
+  - https://github.com/scharinger/userscripts/raw/refs/heads/main/scripts/aditro.js
+
 
 ## 🛠️ Development
 
